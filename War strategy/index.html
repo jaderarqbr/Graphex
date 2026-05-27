@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Montador de Tabuleiro War</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>War Strategy</h1>
+
+    <div class="main-content-container">
+        <div id="board-container">
+            <div id="board">
+            </div>
+        </div>
+
+        <div id="rules-container">
+            <h2>Legendas</h2>
+            <img src="regras_shatranj.jpg" alt="Regras do Shatranj" id="rules-image">
+        </div>
+    </div>
+
+    <div id="controls-container">
+        <div id="piece-selector">
+            <h2>Peças para Montagem</h2>
+            <div id="pieces-list">
+            </div>
+            <p>Arraste as peças selecionadas para o tabuleiro.</p>
+        </div>
+
+        <div id="remove-area">
+            <h2>Remover Peça</h2>
+            <div class="drop-target-area">
+                Arraste peças do tabuleiro para cá para removê-las.
+            </div>
+        </div>
+    </div>
+    
+    <button id="reset-button">Limpar Tabuleiro</button>
+
+    <script src="script.js"></script>
+</body>
+</html>
