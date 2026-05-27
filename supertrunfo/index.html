@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Trunfo Digital - Países</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Super Trunfo Digital</h1>
+
+        <div class="score-area">
+            <p>Cartas Descartadas - Azul: <strong id="score-blue">0</strong></p>
+            <p>Cartas Descartadas - Vermelho: <strong id="score-red">0</strong></p>
+        </div>
+        <hr>
+
+        <div class="top-controls">
+            <button id="sortear-atributo">Sortear Atributo</button>
+            <p id="atributo-sorteado">Atributo para o Desafio: <strong>Aguardando Sorteio</strong></p>
+        </div>
+
+        <hr>
+
+        <div class="card-area">
+            <div id="card-1" class="card card-blue">
+                <h2>Carta 1</h2>
+                <img id="image-1" src="placeholder_blue.jpg" alt="Carta 1" class="card-image">
+                <div class="stats">
+                    <p id="pib-1">PIB: -</p>
+                    <p id="idh-1">IDH: -</p>
+                    <p id="exercito-1">Exército: -</p>
+                    <p id="densidade-1">Densidade: -</p>
+                </div>
+            </div>
+            
+            <div id="card-2" class="card card-red">
+                <h2>Carta 2</h2>
+                <img id="image-2" src="placeholder_red.jpg" alt="Carta 2" class="card-image">
+                <div class="stats">
+                    <p id="pib-2">PIB: -</p>
+                    <p id="idh-2">IDH: -</p>
+                    <p id="exercito-2">Exército: -</p>
+                    <p id="densidade-2">Densidade: -</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-controls">
+            <button id="sortear-cartas" disabled>Sortear Cartas</button>
+            <button id="challenge" disabled>Challenge!</button>
+            <button id="discard-winner" disabled style="background-color: #28a745;">Descartar Carta Perdida</button>
+        </div>
+
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+

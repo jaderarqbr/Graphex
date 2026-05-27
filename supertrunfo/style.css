@@ -1,0 +1,170 @@
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f0f0;
+    margin: 0;
+}
+
+.container {
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    width: 90%;
+    max-width: 1000px;
+}
+
+h1 {
+    color: #333;
+}
+
+/* Estilo para a Área do Placar */
+.score-area {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    font-size: 1.1em;
+    font-weight: bold;
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+.score-area strong {
+    color: #dc3545; 
+}
+
+
+.top-controls, .bottom-controls {
+    margin: 20px 0;
+}
+
+.top-controls p {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.card-area {
+    display: flex;
+    justify-content: space-around;
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.card {
+    border: 3px solid #ccc;
+    border-radius: 10px;
+    padding: 15px;
+    width: 45%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    position: relative; 
+    transition: all 0.5s ease-in-out;
+}
+
+.card-image {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.stats p {
+    text-align: left;
+    margin: 5px 0;
+    padding: 5px;
+    border-bottom: 1px dashed #eee;
+    font-weight: 500;
+    background-color: transparent; 
+}
+
+/* Estilos de Times: Azul e Vermelho */
+.card-blue {
+    border-color: #007bff; /* Borda Azul */
+}
+
+.card-red {
+    border-color: #dc3545; /* Borda Vermelha */
+}
+
+
+/* Efeito de Vitória/Derrota */
+.winner {
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
+    transform: scale(1.05); 
+}
+
+.loser {
+    opacity: 0.3; /* Escurece a perdedora */
+    filter: grayscale(100%);
+}
+
+/* Customização do Winner por Time */
+.card-blue.winner {
+    border-color: #007bff;
+}
+.card-blue.winner::after {
+    content: 'WINNER';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-20deg);
+    font-size: 4em;
+    font-weight: bold;
+    color: #007bff;
+    opacity: 0.9;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 5px 20px;
+    border-radius: 10px;
+    border: 3px solid #007bff;
+}
+
+.card-red.winner {
+    border-color: #dc3545;
+}
+.card-red.winner::after {
+    content: 'WINNER';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-20deg);
+    font-size: 4em;
+    font-weight: bold;
+    color: #dc3545;
+    opacity: 0.9;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 5px 20px;
+    border-radius: 10px;
+    border: 3px solid #dc3545;
+}
+
+
+/* Estilos dos Botões */
+button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    font-size: 1em;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    transition: background-color 0.3s;
+}
+
+button:hover:enabled {
+    background-color: #0056b3;
+}
+
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
