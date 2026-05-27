@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Protótipo Planta Baixa</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      /* REMOVIDO: -ms-content-zooming: none; E touch-action: none; DO BODY */
+    }
+    #toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 5px;
+      gap: 5px;
+      align-items: center;
+      background: #f0f0f0;
+      border-bottom: 1px solid #ccc;
+    }
+    #toolbar button, select, input[type="color"], input[type="number"] {
+      margin: 3px 0;
+    }
+    #canvasContainer {
+      flex: 1;
+      position: relative;
+      background: #fff;
+      overflow: auto; 
+    }
+    canvas {
+      border: 1px solid #ccc;
+      display: block;
+      margin: 10px auto; 
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      /* CORRIGIDO: touch-action: none; APLICADO APENAS AO CANVAS */
+      touch-action: none; 
+      user-select: none;
+    }
+    #statusBar {
+      padding: 4px 10px;
+      font-size: 12px;
+      background: #eee;
+      border-top: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button onclick="setTool('pencil')">Lápis</button>
+    <button onclick="setTool('line')">Linha</button>
+    <button onclick="setTool('rect')">Retângulo</button>
+    <button onclick="setTool('circle')">Círculo</button>
+    <button onclick="setTool('fill')">Balde</button>
+    <button onclick="setTool('eraser')">Borracha</button>
+    <button onclick="setTool('measure')">Cota</button>
+    <button onclick="setTool('text')">Texto</button>
+
+    <select id="lineStyle">
+      <option value="solid">Linha contínua</option>
+      <option value="dashed">Tracejada</option>
+    </select>
+    <input type="color" id="colorPicker" value="#000000">
+    <input type="number" id="lineWidth" value="2" min="1" style="width: 60px">
+    
+    <span>Escala (px/cm):</span>
+    <input type="number" id="scaleInput" value="1" min="0.1" step="0.1" style="width: 70px;">
+  </div>
+
+  <div id="canvasContainer">
+    <canvas id="drawingCanvas" width="1600" height="1000"></canvas>
+  </div>
+
+  <div id="statusBar">Ferramenta atual: <span id="currentTool">Lápis</span></div>
+
+  <script>
+    const canvas = document.getElementById('drawingCanvas');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let startX = 0, startY = 0;
+    let currentTool = 'pencil';
+    let savedCanvasState;
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.getElementById('currentTool').textContent = tool.charAt(0).toUpperCase() + tool.slice(1);
+    }
+    
+    /**
+     * Função auxiliar para obter as coordenadas X e Y relativas ao canvas
+     */
+    function getCoords(e) {
+        let x, y;
+        
+        if (e.touches && e.touches.length > 0) {
+            const rect = canvas.getBoundingClientRect();
+            x = e.touches[0].clientX - rect.left;
+            y = e.touches[0].clientY - rect.top;
+        } else {
+            x = e.offsetX;
+            y = e.offsetY;
+        }
+        
+        x = Math.max(0, Math.min(x, canvas.width));
+        y = Math.max(0, Math.min(y, canvas.height));
+        
+        return [x, y];
+    }
+    
+    // Funções de cor e Flood Fill
+    function hexToRgbaArray(hex) {
+        let shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+        hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+            return r + r + g + g + b + b;
+        });
+
+        let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? [
+            parseInt(result[1], 16), 
+            parseInt(result[2], 16), 
+            parseInt(result[3], 16), 
+            255                      
+        ] : [0, 0, 0, 255];
+    }
+
+    function getPixelColorData(x, y) {
+        if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+            return null;
+        }
+        return ctx.getImageData(x, y, 1, 1).data;
+    }
+
+    function colorsMatch(color1, color2) {
+        if (!color1 || !color2) return false;
+        return (
+            color1[0] === color2[0] &&
+            color1[1] === color2[1] &&
+            color1[2] === color2[2] &&
+            color1[3] === color2[3]
+        );
+    }
+
+    function floodFill(startX, startY, fillColorHex) {
+        const width = canvas.width;
+        const height = canvas.height;
+
+        const targetColorData = getPixelColorData(startX, startY);
+        if (!targetColorData) return;
+
+        const fillColorData = hexToRgbaArray(fillColorHex);
+
+        if (colorsMatch(targetColorData, fillColorData)) {
+            return;
+        }
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        
+        const pixelStack = [[startX, startY]]; 
+        
+        function getIndex(x, y) {
+            return (y * width + x) * 4;
+        }
+
+        while (pixelStack.length) {
+            const [x, y] = pixelStack.pop();
+            const index = getIndex(x, y);
+
+            if (x < 0 || x >= width || y < 0 || y >= height) {
+                continue;
+            }
+
+            const r = data[index];
+            const g = data[index + 1];
+            const b = data[index + 2];
+            const a = data[index + 3];
+            
+            const currentColor = [r, g, b, a];
+
+            if (colorsMatch(currentColor, targetColorData)) {
+                data[index] = fillColorData[0];     
+                data[index + 1] = fillColorData[1]; 
+                data[index + 2] = fillColorData[2]; 
+                data[index + 3] = fillColorData[3]; 
+
+                pixelStack.push([x + 1, y]);
+                pixelStack.push([x - 1, y]);
+                pixelStack.push([x, y + 1]);
+                pixelStack.push([x, y - 1]);
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    // --- Funções de Evento (Adaptadas para Mouse e Touch) ---
+
+    function handleStart(e) {
+      // Previne o comportamento padrão (como scroll em toque) SOMENTE se for evento de toque no canvas.
+      if (e.target === canvas && e.type.startsWith('touch')) e.preventDefault();
+      
+      drawing = true;
+      [startX, startY] = getCoords(e);
+      
+      if (currentTool === 'fill') {
+        const fillColor = document.getElementById('colorPicker').value;
+        floodFill(startX, startY, fillColor); 
+        drawing = false;
+        return; 
+      } 
+      
+      if (currentTool === 'text') {
+        const text = prompt('Texto:');
+        if (text) {
+          ctx.font = '16px Arial';
+          ctx.fillStyle = document.getElementById('colorPicker').value;
+          ctx.fillText(text, startX, startY);
+        }
+        drawing = false;
+        return; 
+      }
+      
+      savedCanvasState = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+    }
+
+    function handleMove(e) {
+      if (!drawing || currentTool === 'fill' || currentTool === 'text' || currentTool === 'measure') return;
+      if (e.target === canvas && e.type.startsWith('touch')) e.preventDefault();
+
+      const [x, y] = getCoords(e);
+      ctx.strokeStyle = document.getElementById('colorPicker').value;
+      ctx.lineWidth = parseInt(document.getElementById('lineWidth').value);
+      ctx.setLineDash(document.getElementById('lineStyle').value === 'dashed' ? [5, 5] : []);
+
+      if (currentTool === 'pencil') {
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      } else if (currentTool === 'line' || currentTool === 'rect' || currentTool === 'circle') {
+         ctx.putImageData(savedCanvasState, 0, 0);
+         
+         ctx.beginPath();
+         if (currentTool === 'line') {
+             ctx.moveTo(startX, startY);
+             ctx.lineTo(x, y);
+         } else if (currentTool === 'rect') {
+             ctx.strokeRect(startX, startY, x - startX, y - startY);
+         } else if (currentTool === 'circle') {
+             let radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+             ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+         }
+         ctx.stroke();
+         ctx.beginPath();
+      } else if (currentTool === 'eraser') {
+        ctx.clearRect(x - 5, y - 5, 10, 10); 
+      }
+    }
+
+    function handleEnd(e) {
+      if (!drawing) return;
+      
+      // O preventDefault não é estritamente necessário no 'end' se o 'start' e 'move' já foram tratados.
+      
+      drawing = false;
+      
+      let x, y;
+      if (e.type === 'mouseup' || e.type === 'mouseout') {
+          [x, y] = getCoords(e);
+      } else if (e.changedTouches && e.changedTouches.length > 0) {
+          // Obtém a coordenada de onde o toque terminou
+          const rect = canvas.getBoundingClientRect();
+          x = e.changedTouches[0].clientX - rect.left;
+          y = e.changedTouches[0].clientY - rect.top;
+      } else {
+          [x, y] = [startX, startY]; 
+      }
+      
+      ctx.strokeStyle = document.getElementById('colorPicker').value;
+      ctx.lineWidth = parseInt(document.getElementById('lineWidth').value);
+      ctx.setLineDash(document.getElementById('lineStyle').value === 'dashed' ? [5, 5] : []);
+
+      if (currentTool === 'line' || currentTool === 'rect' || currentTool === 'circle') {
+         ctx.putImageData(savedCanvasState, 0, 0); 
+
+         ctx.beginPath();
+         if (currentTool === 'line') {
+           ctx.moveTo(startX, startY);
+           ctx.lineTo(x, y);
+         } else if (currentTool === 'rect') {
+           ctx.strokeRect(startX, startY, x - startX, y - startY);
+         } else if (currentTool === 'circle') {
+           let radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+           ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+         }
+         ctx.stroke();
+      } else if (currentTool === 'measure') {
+        // Lógica de Escala lendo da UI
+        const scaleInput = document.getElementById('scaleInput');
+        const PIXEL_TO_CM_SCALE = parseFloat(scaleInput.value) || 1; 
+        
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        let lengthInPixels = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+        
+        let lengthInCm = (lengthInPixels * PIXEL_TO_CM_SCALE).toFixed(2); 
+
+        ctx.fillStyle = document.getElementById('colorPicker').value; 
+        ctx.font = '14px Arial'; 
+        ctx.fillText(`${lengthInCm} cm`, (startX + x) / 2, (startY + y) / 2);
+      }
+      
+      ctx.beginPath();
+    }
+    
+    // --- Mapeamento dos Eventos Mouse e Touch ---
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    canvas.addEventListener('mouseup', handleEnd);
+    
+    canvas.addEventListener('touchstart', handleStart);
+    canvas.addEventListener('touchmove', handleMove);
+    canvas.addEventListener('touchend', handleEnd);
+  </script>
+</body>
+</html>

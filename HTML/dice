@@ -1,0 +1,104 @@
+<div class="dice-container">
+    <div id="unitDice" class="dice d10"></div>
+    <button onclick="rollDice('unit')">Colocar Unidade</button>
+
+    <div id="airDice" class="dice d30"></div>
+    <button onclick="rollDice('air')">Combate Aéreo (D30)</button>
+
+    <div id="navyDice" class="dice d20"></div>
+    <button onclick="rollDice('navy')">Combate Naval (D20)</button>
+
+    <div id="armyDice" class="dice d10"></div>
+    <button onclick="rollDice('army')">Combate Terrestre (D10)</button>
+</div>
+
+<div id="map-container">
+    </div>
+
+
+Style
+
+
+.dice-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.dice {
+    width: 60px;
+    height: 60px;
+    border: 2px solid black;
+    display: inline-flex; /* Para centralizar o texto */
+    justify-content: center; /* Centraliza horizontalmente */
+    align-items: center;   /* Centraliza verticalmente */
+    font-size: 24px;
+    font-weight: bold;
+    margin: 10px;
+    background-color: #f0f0f0;
+    border-radius: 8px;
+    transition: transform 0.1s ease-out; /* Para a animação de "giro" */
+}
+
+/* Você pode adicionar estilos específicos para cada tipo de dado se quiser */
+.d10 { background-color: lightblue; }
+.d20 { background-color: lightgreen; }
+.d30 { background-color: lightcoral; }
+
+button {
+    padding: 8px 15px;
+    margin: 5px;
+    cursor: pointer;
+}
+
+
+Java
+
+function rollDice(type) {
+    let result;
+    let diceElement;
+    let unitMapping = [
+        "Infantaria", "Infantaria", "Infantaria", // Mais chance de Infantaria
+        "Tanque", 
+        "Caminhão",
+        "Avião",
+          "Bombardeio",
+        "Navio",
+        "Submarino",
+        "Helicóptero",
+        "Motocicleta" // Ou outra unidade especial
+    ];
+
+    switch (type) {
+        case 'unit':
+            result = Math.floor(Math.random() * 10); // 0-9 para o array
+            diceElement = document.getElementById('unitDice');
+            diceElement.textContent = unitMapping[result]; // Mostra o nome da unidade
+            break;
+        case 'air':
+            result = Math.floor(Math.random() * 30) + 1;
+            diceElement = document.getElementById('airDice');
+            diceElement.textContent = result;
+            break;
+        case 'navy':
+            result = Math.floor(Math.random() * 20) + 1;
+            diceElement = document.getElementById('navyDice');
+            diceElement.textContent = result;
+            break;
+        case 'army':
+            result = Math.floor(Math.random() * 10) + 1;
+            diceElement = document.getElementById('armyDice');
+            diceElement.textContent = result;
+            break;
+    }
+
+    // Animação de "giro"
+    if (diceElement) {
+        diceElement.style.transform = 'rotateY(360deg)';
+        setTimeout(() => {
+            diceElement.style.transform = 'rotateY(0deg)';
+        }, 100); // Rápida rotação para simular o giro
+    }
+}
+
+
+

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Creative Grafex Design (v5 - Cota 3-Cliques)</title>
+<style>
+/* ----------------------------------------------------------------------------------------------------------------------
+ * ESTILOS CSS
+ * ---------------------------------------------------------------------------------------------------------------------- */
+:root {
+    --bg: #fafafa;
+    --pane: #f0f2f5;
+    --muted: #666;
+    --accent: #007bff;
+}
+
+html, body {
+    height: 100vh;
+    margin: 0;
+    font-family: Inter, Arial, sans-serif;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Toolbar */
+#toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: var(--pane);
+    border-bottom: 1px solid #ddd;
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+button, select, input[type=color], input[type=number] {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #cfcfcf;
+    background: white;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+button:hover, .tool-button.active {
+    background: #e0e0e0;
+}
+
+.tool-button.active {
+    border-color: var(--accent);
+    background: #d4e8ff;
+    font-weight: bold;
+}
+
+/* Main Layout: 3 Colunas */
+#main {
+    display: flex;
+    flex: 1;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+/* Canvas Container (Centro) */
+#canvasContainer {
+    flex: 1;
+    position: relative;
+    overflow: auto;
+    background-color: #eee;
+    margin: 8px;
+    border: 1px solid #ddd;
+}
+
+#drawingArea {
+    position: relative;
+    width: 2000px; /* Tamanho da área de desenho */
+    height: 1500px;
+}
+
+/* Canvases */
+.drawing-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* Configuração padrão de tamanho para a área de desenho */
+    width: 2000px; 
+    height: 1500px;
+    background: transparent;
+}
+
+#overlayCanvas {
+    z-index: 100; /* Sempre no topo */
+}
+
+/* Sidebar Direita (Camadas e Propriedades) */
+#sidebarRight {
+    width: 200px;
+    background: var(--pane);
+    padding: 8px;
+    overflow-y: auto;
+    flex-shrink: 0;
+    border-left: 1px solid #ddd;
+}
+
+/* Componente Toast para mensagens */
+#toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 200;
+}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+    <button id="tool_measure" class="tool-button active" data-tool="measure">Cota (3 Cliques)</button>
+    <button id="tool_pencil" class="tool-button" data-tool="pencil">Lápis</button>
+
+    <label for="colorPicker">Cor:</label>
+    <input type="color" id="colorPicker" value="#000000">
+    
+    <label for="lineWidthInput">Espessura:</label>
+    <input type="number" id="lineWidthInput" value="2" min="1">
+    
+    <label for="lineStyleSelect">Linha:</label>
+    <select id="lineStyleSelect">
+        <option value="solid">Sólida</option>
+        <option value="dashed">Tracejada</option>
+    </select>
+    
+    <label for="scaleInput">Escala (1px =):</label>
+    <input type="number" id="scaleInput" value="1" min="0.01" style="width: 50px;">
+    
+    <label for="unitSelect">Unidade:</label>
+    <select id="unitSelect">
+        <option value="cm">cm</option>
+        <option value="m">m</option>
+        <option value="mm">mm</option>
+    </select>
+</div>
+
+<div id="main">
+    <div id="canvasContainer">
+        <div id="drawingArea">
+            <canvas id="overlayCanvas" class="drawing-canvas"></canvas>
+        </div>
+    </div>
+
+    <div id="sidebarRight">
+        <h3>Camadas</h3>
+        <ul id="layersList">
+            </ul>
+        <button id="addLayerBtn">+ Nova Camada</button>
+        <button id="undoBtn">Desfazer (Z)</button>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ----------------------------------------------------------------------------------------------------------------------
+ * VARIÁVEIS GLOBAIS E INICIALIZAÇÃO
+ * ---------------------------------------------------------------------------------------------------------------------- */
+const canvasContainer = document.getElementById('canvasContainer');
+const drawingArea = document.getElementById('drawingArea');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const overlayCtx = overlayCanvas.getContext('2d');
+
+// Controles de UI
+const colorPicker = document.getElementById('colorPicker');
+const lineWidthInput = document.getElementById('lineWidthInput');
+const lineStyleSelect = document.getElementById('lineStyleSelect');
+const scaleInput = document.getElementById('scaleInput');
+const unitSelect = document.getElementById('unitSelect');
+const layersList = document.getElementById('layersList');
+const toastElement = document.getElementById('toast');
+
+let currentTool = 'measure'; 
+let layers = []; 
+let activeLayerId = null;
+let pointerDown = false;
+let drawing = false;
+
+// Variáveis para o sistema de 3 cliques da COTA (NOVAS VARIÁVEIS)
+let dim_stage = 0; // 0: inativo, 1: ponto 1 definido, 2: pontos 1 e 2 definidos
+let dim_x1 = 0, dim_y1 = 0;
+let dim_x2 = 0, dim_y2 = 0; 
+// Fim Variáveis de Cota
+
+// Histórico de Desfazer (simplificado)
+let undoStack = [];
+
+/* ----------------------------------------------------------------------------------------------------------------------
+ * UTILS E FUNÇÕES DE LAYERS (SIMPLIFICADAS)
+ * ---------------------------------------------------------------------------------------------------------------------- */
+
+/** Simula a obtenção das coordenadas do mouse com a compensação de rolagem. */
+function getCanvasMousePosition(ev) {
+    const rect = drawingArea.getBoundingClientRect();
+    const x = ev.clientX - rect.left + canvasContainer.scrollLeft;
+    const y = ev.clientY - rect.top + canvasContainer.scrollTop;
+    return { x: x, y: y };
+}
+
+/** Simula a obtenção do contexto da camada ativa. */
+function getActiveContext() {
+    if (!activeLayerId) return null;
+    const canvas = document.getElementById(`layer_${activeLayerId}`);
+    return canvas ? canvas.getContext('2d') : null;
+}
+
+/** Simula o repintar de todas as camadas. */
+function redrawAll() {
+    clearOverlay();
+    // Em uma aplicação real, aqui repintaria todas as camadas
+}
+
+/** Simula a função de desfazer. */
+function pushUndo() {
+    // Em uma aplicação real, aqui salvaria o estado do canvas
+    undoStack.push(true); // Placeholder
+}
+
+/** Exibe mensagens para o usuário. */
+function showToast(message, duration = 1500) {
+    toastElement.textContent = message;
+    toastElement.style.opacity = 1;
+    setTimeout(() => {
+        toastElement.style.opacity = 0;
+    }, duration);
+}
+
+/** Simula o snap ortogonal (para o ponto final da cota). */
+function snapOrthogonal(x1, y1, x2, y2, ev) {
+    // Se a tecla Shift estiver pressionada, força o snap
+    if (ev && ev.shiftKey) {
+        const dx = Math.abs(x2 - x1);
+        const dy = Math.abs(y2 - y1);
+        
+        if (dx > dy) { // Mais horizontal
+            return { x: x2, y: y1 }; // Força y2 = y1
+        } else { // Mais vertical
+            return { x: x1, y: y2 }; // Força x2 = x1
+        }
+    }
+    return { x: x2, y: y2 }; // Sem snap
+}
+
+/** Limpa o canvas de overlay. */
+function clearOverlay() {
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+}
+
+/** Adiciona uma nova camada (simplificado). */
+function addLayer() {
+    const newId = Date.now();
+    const newCanvas = document.createElement('canvas');
+    newCanvas.id = `layer_${newId}`;
+    newCanvas.className = 'drawing-canvas';
+    newCanvas.width = drawingArea.offsetWidth;
+    newCanvas.height = drawingArea.offsetHeight;
+
+    drawingArea.insertBefore(newCanvas, overlayCanvas);
+    layers.push({ id: newId, name: `Camada ${layers.length + 1}` });
+    
+    activeLayerId = newId;
+    updateLayersListUI();
+}
+
+/** Atualiza a lista de camadas (simplificado). */
+function updateLayersListUI() {
+    layersList.innerHTML = '';
+    layers.forEach(layer => {
+        const li = document.createElement('li');
+        li.textContent = layer.name;
+        li.style.border = (layer.id === activeLayerId) ? '2px solid blue' : '1px solid #ccc';
+        li.onclick = () => {
+            activeLayerId = layer.id;
+            updateLayersListUI();
+        };
+        layersList.appendChild(li);
+    });
+}
+
+// Inicializa com uma camada e a UI
+addLayer();
+
+
+/* ----------------------------------------------------------------------------------------------------------------------
+ * FUNÇÕES DA COTA (O NÚCLEO DA LÓGICA)
+ * ---------------------------------------------------------------------------------------------------------------------- */
+
+/** * Calcula o texto de medição com base nos pontos.
+ * Mantido simples e sem fundo (transparente).
+ */
+function calculateMeasurementText(x1, y1, x2, y2){
+    const PIXEL_TO_CM_SCALE = parseFloat(scaleInput.value) || 1;
+    const unit = unitSelect.value;
+    const lenPx = Math.hypot(x2-x1,y2-y1);
+    let lengthInCm = lenPx * PIXEL_TO_CM_SCALE;
+    let finalLength;
+
+    if (unit === 'm') {
+        finalLength = (lengthInCm / 100).toFixed(2);
+    } else if (unit === 'mm') {
+        finalLength = (lengthInCm * 10).toFixed(0);
+    } else { // 'cm' (padrão)
+        finalLength = lengthInCm.toFixed(2);
+    }
+
+    // Supressão do zero à esquerda 
+    if (unit !== 'mm' && finalLength.startsWith('0.')) {
+        finalLength = finalLength.substring(1); 
+    }
+    
+    return `${finalLength} ${unit}`;
+}
+
+/** * Desenha a cota no estilo CAD (3-Cliques).
+ * (x1, y1) e (x2, y2) são os pontos medidos. 
+ * (mx, my) é o ponto de posicionamento (offset).
+ */
+function drawMeasurement(ctx, x1, y1, x2, y2, mx, my, isPreview) {
+    const dx = x2 - x1, dy = y2 - y1;
+    
+    // 1. Cálculo da Geometria
+    const angle = Math.atan2(dy, dx); 
+    const lenPx = Math.hypot(dx, dy);
+
+    // Se a medida for muito pequena, não desenha.
+    if (lenPx < 5) return; 
+
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    
+    const px = mx - cx; 
+    const py = my - cy;
+    
+    // Distância de offset: projeção do vetor centro->mouse na normal da linha medida.
+    // normalX e normalY: vetor perpendicular unitário à linha medida (dx, dy)
+    const normalX_raw = -dy;
+    const normalY_raw = dx;
+    
+    let H_OFFSET_CAD = (px * normalX_raw + py * normalY_raw) / lenPx;
+    
+    // Define um offset mínimo de 15px se o mouse estiver muito perto da linha
+    if (Math.abs(H_OFFSET_CAD) < 15) {
+        H_OFFSET_CAD = (H_OFFSET_CAD < 0) ? -15 : 15;
+    }
+    
+    const H_OFFSET = H_OFFSET_CAD; 
+    
+    // Vetor perpendicular (unitário) para deslocamento
+    const normalX = normalX_raw / lenPx;
+    const normalY = normalY_raw / lenPx;
+    
+    // Ponto 1 da cota (x1 movido pelo offset)
+    const x_dim1 = x1 + normalX * H_OFFSET;
+    const y_dim1 = y1 + normalY * H_OFFSET;
+    
+    // Ponto 2 da cota (x2 movido pelo offset)
+    const x_dim2 = x2 + normalX * H_OFFSET;
+    const y_dim2 = y2 + normalY * H_OFFSET;
+    
+    // Ponto central da linha de cota para o texto
+    const x_dim_center = (x_dim1 + x_dim2) / 2;
+    const y_dim_center = (y_dim1 + y_dim2) / 2;
+
+
+    // 2. Configurações de estilo
+    ctx.save();
+    ctx.strokeStyle = colorPicker.value;
+    ctx.fillStyle = colorPicker.value;
+    
+    // Linha fina tracejada para preview, ou linha do usuário para finalização
+    ctx.lineWidth = isPreview ? 1 : Math.max(1, parseInt(lineWidthInput.value||2));
+    ctx.setLineDash(isPreview ? [2, 2] : (lineStyleSelect.value === 'dashed' ? [6,4] : []));
+    ctx.font = '14px Arial'; 
+    
+    const TICK_SIZE = 8;
+    const TEXT_OFFSET_FROM_DIMLINE = 5; 
+    
+    // 3. Desenha as LINHAS DE EXTENSÃO (Contínuas)
+    const currentLineDash = ctx.getLineDash();
+    ctx.setLineDash([]); // Sem tracejado para linhas de extensão
+    
+    // Linha de Extensão 1 (Do ponto x1/y1 até x_dim1/y_dim1)
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x_dim1, y_dim1);
+    ctx.stroke();
+    
+    // Linha de Extensão 2 (Do ponto x2/y2 até x_dim2/y_dim2)
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x_dim2, y_dim2);
+    ctx.stroke();
+    
+    // 4. Desenha a LINHA DE COTA (Com Tracejado, se não for preview)
+    ctx.setLineDash(currentLineDash); 
+    
+    ctx.beginPath();
+    ctx.moveTo(x_dim1, y_dim1);
+    ctx.lineTo(x_dim2, y_dim2);
+
+    // Ticks (nas pontas da linha de cota)
+    const tick_angle_1 = angle + Math.PI / 2;
+    const tick_angle_2 = angle - Math.PI / 2;
+
+    // Tick na ponta 1
+    ctx.moveTo(x_dim1 + TICK_SIZE/2 * Math.cos(tick_angle_1), y_dim1 + TICK_SIZE/2 * Math.sin(tick_angle_1));
+    ctx.lineTo(x_dim1 + TICK_SIZE/2 * Math.cos(tick_angle_2), y_dim1 + TICK_SIZE/2 * Math.sin(tick_angle_2));
+    
+    // Tick na ponta 2
+    ctx.moveTo(x_dim2 + TICK_SIZE/2 * Math.cos(tick_angle_1), y_dim2 + TICK_SIZE/2 * Math.sin(tick_angle_1));
+    ctx.lineTo(x_dim2 + TICK_SIZE/2 * Math.cos(tick_angle_2), y_dim2 + TICK_SIZE/2 * Math.sin(tick_angle_2));
+
+    ctx.stroke();
+    
+    ctx.restore(); 
+
+    // 5. Desenho do TEXTO (Transparente - sem fundo)
+    const text = calculateMeasurementText(x1, y1, x2, y2);
+    
+    ctx.save();
+    ctx.translate(x_dim_center, y_dim_center); 
+    ctx.rotate(angle);              
+    
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; 
+    
+    // Se a cota for virada, rotaciona 180 graus para que o texto não fique de cabeça para baixo.
+    if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+        ctx.rotate(Math.PI); 
+    }
+
+    // Deslocamento vertical do texto para flutuar acima/abaixo da linha de cota
+    // O texto flutua na mesma direção do offset
+    const textY = (H_OFFSET_CAD < 0 ? 1 : -1) * TEXT_OFFSET_FROM_DIMLINE; 
+
+    // Desenha o texto da cota
+    ctx.fillStyle = colorPicker.value;
+    ctx.fillText(text, 0, textY); 
+
+    ctx.restore();
+}
+
+
+/* ----------------------------------------------------------------------------------------------------------------------
+ * EVENT LISTENERS (LÓGICA DOS 3 CLIQUES)
+ * ---------------------------------------------------------------------------------------------------------------------- */
+
+// Evento de Início do Clique/Toque
+drawingArea.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault();
+    const { x, y } = getCanvasMousePosition(ev);
+    
+    const activeCtx = getActiveContext();
+    
+    // Lógica de 3-Cliques para Cota
+    if (currentTool === 'measure') {
+        if (!activeCtx) {
+            showToast('Selecione uma camada (borda azul) para inserir a cota.');
+            return;
+        }
+        
+        if (dim_stage === 0) {
+            // PRIMEIRO clique: Início da medição
+            dim_x1 = x; dim_y1 = y;
+            dim_stage = 1;
+            showToast('Ponto inicial da cota definido. Clique no ponto final.', 1500);
+            pointerDown = true;
+            return;
+        } else if (dim_stage === 1) {
+            // SEGUNDO clique: Este será tratado pelo 'pointerup'
+            pointerDown = true;
+            return;
+        } else if (dim_stage === 2) {
+            // TERCEIRO clique: Posicionamento final da cota (tratado pelo 'pointerup')
+            pointerDown = true;
+            return;
+        }
+    }
+
+    // Lógica normal para outras ferramentas
+    if (['pencil'].includes(currentTool)){
+        // ... Lógica para pencil, line, rect, etc. (simplificada)
+        pointerDown = true;
+        drawing = true;
+        
+        // Em um app real: startX = x, startY = y;
+        return;
+    }
+});
+
+// Evento de Movimento do Mouse/Toque
+drawingArea.addEventListener('pointermove', (ev) => {
+    const { x, y } = getCanvasMousePosition(ev);
+    
+    // Cota (Stage 2: Preview do Posicionamento)
+    if (currentTool === 'measure' && dim_stage === 2) {
+        clearOverlay();
+        // Desenha o preview da cota, passando os 2 pontos de medição e a posição do mouse (x, y)
+        drawMeasurement(overlayCtx, dim_x1, dim_y1, dim_x2, dim_y2, x, y, true); 
+        return; 
+    }
+    
+    // Cota (Stage 1: Preview da Linha de Medição)
+    if (currentTool === 'measure' && dim_stage === 1 && pointerDown) {
+        clearOverlay();
+        // Aplica Snap Ortogonal para o preview do segundo ponto
+        const p = snapOrthogonal(dim_x1, dim_y1, x, y, ev);
+        // Desenha o preview da linha de cota temporária (sem offset)
+        overlayCtx.save();
+        overlayCtx.strokeStyle = 'rgba(0,0,255,0.7)';
+        overlayCtx.lineWidth = 2;
+        overlayCtx.setLineDash([4, 2]);
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(dim_x1, dim_y1);
+        overlayCtx.lineTo(p.x, p.y);
+        overlayCtx.stroke();
+        overlayCtx.restore();
+        return;
+    }
+
+    // Preview para outras ferramentas (simplificado)
+    if (drawing && pointerDown && ['pencil'].includes(currentTool)) {
+        // ... Lógica de preview para outras ferramentas
+        return;
+    }
+});
+
+// Evento de Fim do Clique/Toque
+drawingArea.addEventListener('pointerup', (ev) => {
+    if (!pointerDown) return;
+    pointerDown = false;
+    
+    const { x, y } = getCanvasMousePosition(ev);
+    const activeCtx = getActiveContext();
+    
+    // Lógica de 3-Cliques para Cota
+    if (currentTool === 'measure' && activeCtx) {
+        
+        if (dim_stage === 1) {
+            // SEGUNDO clique: Ponto final da medição
+            const p = snapOrthogonal(dim_x1, dim_y1, x, y, ev);
+            dim_x2 = p.x; dim_y2 = p.y;
+            
+            // Verifica se a linha é longa o suficiente para avançar
+            if (Math.hypot(dim_x2 - dim_x1, dim_y2 - dim_y1) < 5) {
+                 showToast('Medida muito pequena. Tente novamente no ponto final.', 1500);
+                 // Permanece em stage 1, mas limpa o preview do move
+                 clearOverlay();
+                 drawing = false; 
+                 return;
+            } 
+            
+            dim_stage = 2;
+            showToast('Ponto final definido. Mova o mouse e clique para posicionar a cota (Offset).', 2000);
+            
+        } else if (dim_stage === 2) {
+            // TERCEIRO clique: Posicionamento final (mx, my)
+            
+            // Finaliza o desenho no contexto ativo, usando a posição do 3º clique (x, y) como offset
+            drawMeasurement(activeCtx, dim_x1, dim_y1, dim_x2, dim_y2, x, y, false); 
+            pushUndo();
+            showToast('Cota finalizada.', 1500);
+            
+            dim_stage = 0; // Reset
+            dim_x1 = dim_y1 = dim_x2 = dim_y2 = 0;
+            redrawAll(); // Redesenha todas as camadas (e limpa o overlay)
+        }
+        
+        drawing = false;
+        return;
+    }
+
+    // Lógica de finalização para outras ferramentas
+    if (drawing) {
+        // ... Lógica de desenho final e pushUndo para outras ferramentas
+        drawing = false;
+        redrawAll();
+    }
+});
+
+// Lógica de seleção de ferramenta (simplificada)
+document.querySelectorAll('.tool-button').forEach(button => {
+    button.addEventListener('click', () => {
+        // Reseta o estado da cota ao trocar de ferramenta
+        if (currentTool === 'measure') {
+            dim_stage = 0; 
+            clearOverlay();
+        }
+
+        currentTool = button.dataset.tool;
+        document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        
+        showToast(`Ferramenta: ${currentTool === 'measure' ? 'Cota (3 Cliques)' : 'Lápis'}`, 1000);
+    });
+});
+
+document.getElementById('addLayerBtn').addEventListener('click', addLayer);
+document.getElementById('undoBtn').addEventListener('click', pushUndo);
+
+// Configura o tamanho do canvas com base no container
+function resizeCanvases() {
+    const w = drawingArea.offsetWidth;
+    const h = drawingArea.offsetHeight;
+
+    document.querySelectorAll('.drawing-canvas').forEach(canvas => {
+        canvas.width = w;
+        canvas.height = h;
+    });
+    redrawAll();
+}
+
+window.addEventListener('load', resizeCanvases);
+window.addEventListener('resize', resizeCanvases);
+
+// Opcional: Atalho de teclado para Desfazer (Ctrl/Cmd + Z)
+document.addEventListener('keydown', (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z') {
+        ev.preventDefault();
+        pushUndo();
+    }
+});
+</script>
+</body>
+</html>
