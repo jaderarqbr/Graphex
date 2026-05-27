@@ -1,0 +1,45 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Montador de Tabuleiro Senet</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Montador de Tabuleiro Senet</h1>
+<div class="dice-container">
+    <div id="unitDice" class="dice d10"></div>
+    <button onclick="rollDice('unit')">Jogar Palitos</button>
+ 
+</div>
+
+
+    <div id="board-container">
+        <div id="board">
+            </div>
+    </div>
+
+    <div id="controls-container">
+        <div id="piece-selector">
+            <h2>Peças para Montagem</h2>
+            <div id="pieces-list">
+                </div>
+            <p>Arraste as peças selecionadas para o tabuleiro.</p>
+        </div>
+
+        <div id="remove-area">
+            <h2>Remover Peça</h2>
+            <div class="drop-target-area">
+                Arraste peças do tabuleiro para cá para removê-las.
+            </div>
+        </div>
+    </div>
+    
+    <button id="reset-button">Limpar Tabuleiro</button>
+
+    <script src="script.js"></script>
+</body>
+</html>
