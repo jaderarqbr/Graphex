@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Porrinha - 6 Palitos</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #game-card {
+            background-color: #34495e;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 350px;
+        }
+
+        .placar-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .flag-p1 { color: #fff; }
+        .flag-p2 { color: #e74c3c; }
+
+        .palitos-display {
+            font-size: 24px;
+            letter-spacing: 5px;
+            margin: 10px 0;
+            min-height: 35px;
+        }
+
+        input {
+            width: 60px;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            margin: 5px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        button {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+            transition: 0.3s;
+        }
+
+        button:hover { background-color: #2ecc71; }
+        
+        .hidden { display: none; }
+        
+        #msg-status {
+            font-style: italic;
+            color: #f1c40f;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-card">
+    <h2>Porrinha (6 Palitos)</h2>
+    
+    <div class="placar-container">
+        <div>P1: <span id="p1-flags" class="flag-p1"></span></div>
+        <div>P2: <span id="p2-flags" class="flag-p2"></span></div>
+    </div>
+
+    <div id="setup-area">
+        <h3 id="instrucao">Vez do Jogador 1</h3>
+        <p>Palitos na mão (0 a <span id="max-atual">6</span>):</p>
+        <input type="number" id="input-escondidos" min="0" max="6" value="0">
+        
+        <p>Seu palpite para a soma:</p>
+        <input type="number" id="input-palpite" min="0" max="12" value="0">
+        
+        <br>
+        <button id="btn-acao" onclick="registrarJogada()">Confirmar Escolha</button>
+    </div>
+
+    <div id="reveal-area" class="hidden">
+        <h3>Resultado da Rodada</h3>
+        <div id="visual-revelacao" style="font-size: 30px;"></div>
+        <p id="msg-resultado"></p>
+        <button onclick="proximaRodada()">Continuar</button>
+    </div>
+
+    <div id="msg-status"></div>
+</div>
+
+<script>
+    let p1Restantes = 6;
+    let p2Restantes = 6;
+    let turno = 1; // 1 ou 2
+    
+    let dadosP1 = { escondidos: 0, palpite: 0 };
+    let dadosP2 = { escondidos: 0, palpite: 0 };
+
+    const elInstrucao = document.getElementById('instrucao');
+    const elStatus = document.getElementById('msg-status');
+    const elP1Flags = document.getElementById('p1-flags');
+    const elP2Flags = document.getElementById('p2-flags');
+    const inputEsc = document.getElementById('input-escondidos');
+    const inputPal = document.getElementById('input-palpite');
+
+    function atualizarInterface() {
+        elP1Flags.innerText = "🏳️".repeat(p1Restantes);
+        elP2Flags.innerText = "🚩".repeat(p2Restantes);
+        
+        if (turno === 1) {
+            elInstrucao.innerText = "Vez do Jogador 1";
+            inputEsc.max = p1Restantes;
+            document.getElementById('max-atual').innerText = p1Restantes;
+        } else {
+            elInstrucao.innerText = "Vez do Jogador 2 (P1 feche os olhos!)";
+            inputEsc.max = p2Restantes;
+            document.getElementById('max-atual').innerText = p2Restantes;
+        }
+        inputEsc.value = 0;
+        inputPal.value = 0;
+    }
+
+    function registrarJogada() {
+        const esc = parseInt(inputEsc.value);
+        const pal = parseInt(inputPal.value);
+
+        // Validações básicas
+        const limite = (turno === 1) ? p1Restantes : p2Restantes;
+        if (esc < 0 || esc > limite) {
+            alert("Quantidade de palitos inválida!");
+            return;
+        }
+
+        if (turno === 1) {
+            dadosP1 = { escondidos: esc, palpite: pal };
+            turno = 2;
+            elStatus.innerText = "P1 jogou! Agora P2 escolhe.";
+            atualizarInterface();
+        } else {
+            // Regra: Não pode repetir o palpite do P1
+            if (pal === dadosP1.palpite) {
+                alert("P2 não pode dar o mesmo palpite que P1!");
+                return;
+            }
+            dadosP2 = { escondidos: esc, palpite: pal };
+            revelarResultado();
+        }
+    }
+
+    function revelarResultado() {
+        const somaTotal = dadosP1.escondidos + dadosP2.escondidos;
+        document.getElementById('setup-area').classList.add('hidden');
+        document.getElementById('reveal-area').classList.remove('hidden');
+        
+        const visual = `P1: ${"🥢".repeat(dadosP1.escondidos)} vs P2: ${"🥢".repeat(dadosP2.escondidos)}`;
+        document.getElementById('visual-revelacao').innerHTML = visual + `<br>Soma = ${somaTotal}`;
+
+        let textoResult = "";
+        if (dadosP1.palpite === somaTotal) {
+            p1Restantes--;
+            textoResult = "🏆 JOGADOR 1 ACERTOU!";
+        } else if (dadosP2.palpite === somaTotal) {
+            p2Restantes--;
+            textoResult = "🏆 JOGADOR 2 ACERTOU!";
+        } else {
+            textoResult = "Ninguém acertou desta vez!";
+        }
+
+        document.getElementById('msg-resultado').innerText = textoResult;
+
+        if (p1Restantes === 0 || p2Restantes === 0) {
+            finalizarJogo();
+        }
+    }
+
+    function proximaRodada() {
+        turno = 1;
+        document.getElementById('setup-area').classList.remove('hidden');
+        document.getElementById('reveal-area').classList.add('hidden');
+        elStatus.innerText = "";
+        atualizarInterface();
+    }
+
+    function finalizarJogo() {
+        const vencedor = p1Restantes === 0 ? "JOGADOR 1" : "JOGADOR 2";
+        alert(`FIM DE JOGO! O ${vencedor} GANHOU A PARTIDA!`);
+        location.reload(); // Reinicia o jogo
+    }
+
+    // Inicializa placar
+    atualizarInterface();
+</script>
+
+</body>
+</html>

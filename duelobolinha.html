@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Duelo de Gude: Velocidade Máxima</title>
+    <style>
+        * { box-sizing: border-box; touch-action: none; user-select: none; }
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a1a;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #game-canvas {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            max-height: 800px;
+            background: #3e5e34;
+            border: 10px solid #253a1f;
+            overflow: hidden;
+        }
+
+        /* Jogador */
+        #player {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: radial-gradient(circle at 30% 30%, #5dade2, #1b4f72);
+            border-radius: 50%;
+            bottom: 60px;
+            left: 50%;
+            transform: translate(-50%, 50%);
+            z-index: 10;
+            box-shadow: 2px 4px 6px rgba(0,0,0,0.4);
+        }
+
+        /* Inimigo */
+        #enemy {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 30% 30%, #ec7063, #7b241c);
+            border-radius: 50%;
+            top: 150px;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            box-shadow: 2px 4px 6px rgba(0,0,0,0.4);
+            transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), left 0.4s ease;
+        }
+
+        /* Mira */
+        #arrow {
+            position: absolute;
+            width: 4px;
+            height: 80px;
+            background: linear-gradient(to top, rgba(255,255,255,0.1), #ffeb3b);
+            bottom: 70px;
+            left: 50%;
+            transform-origin: bottom center;
+            display: none;
+        }
+
+        /* HUD Superior */
+        #hud {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 2px black;
+            z-index: 20;
+        }
+
+        /* Painel de Força (1 a 8) */
+        #power-ui {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 30;
+        }
+
+        #power-label {
+            color: #ffeb3b;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 2px black;
+        }
+
+        #power-container {
+            width: 160px;
+            height: 15px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #power-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4caf50, #ffeb3b, #f44336);
+        }
+
+        /* Mensagens */
+        #msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0,0,0,0.9);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+            border: 2px solid #5dade2;
+        }
+
+        button {
+            background: #5dade2;
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-canvas">
+        <div id="hud">
+            <div>ALVO: <span id="enemy-life" style="color:#ff4d4d">❤❤❤</span></div>
+            <div>CHANCES: <span id="player-tries" style="color:#4dff88">3</span></div>
+        </div>
+
+        <div id="msg">
+            <h1 id="status-title">FIM</h1>
+            <button onclick="resetGame()">Jogar Novamente</button>
+        </div>
+
+        <div id="enemy"></div>
+        <div id="arrow"></div>
+        <div id="player"></div>
+
+        <div id="power-ui">
+            <div id="power-label">FORÇA: 1</div>
+            <div id="power-container">
+                <div id="power-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const enemy = document.getElementById('enemy');
+        const arrow = document.getElementById('arrow');
+        const powerFill = document.getElementById('power-fill');
+        const powerLabel = document.getElementById('power-label');
+        const powerUI = document.getElementById('power-ui');
+        const enemyLifeEl = document.getElementById('enemy-life');
+        const triesEl = document.getElementById('player-tries');
+        const msgBox = document.getElementById('msg');
+        const canvas = document.getElementById('game-canvas');
+
+        let enemyLife = 3;
+        let playerTries = 3;
+        let isCharging = false;
+        let isMoving = false;
+        
+        let power = 1; 
+        let powerDir = 1;
+        let angle = 0;
+        let angleDir = 1;
+
+        function gameLoop() {
+            if (isCharging) {
+                // Oscila Mira
+                angle += 2.2 * angleDir; // Mira um pouco mais rápida também
+                if (Math.abs(angle) > 30) angleDir *= -1;
+                arrow.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+
+                // Oscila Força 1 a 8
+                power += 0.15 * powerDir;
+                if (power >= 8) { power = 8; powerDir = -1; }
+                if (power <= 1) { power = 1; powerDir = 1; }
+                
+                const displayPower = Math.floor(power);
+                powerLabel.innerText = `FORÇA: ${displayPower}`;
+                powerFill.style.width = `${(power / 8) * 100}%`;
+            }
+            requestAnimationFrame(gameLoop);
+        }
+        gameLoop();
+
+        const startEvent = (e) => {
+            if (isMoving || enemyLife <= 0 || playerTries <= 0) return;
+            isCharging = true;
+            power = 1;
+            arrow.style.display = 'block';
+            powerUI.style.display = 'flex';
+        };
+
+        const endEvent = (e) => {
+            if (!isCharging) return;
+            isCharging = false;
+            arrow.style.display = 'none';
+            powerUI.style.display = 'none';
+            shoot(Math.floor(power));
+        };
+
+        canvas.addEventListener('mousedown', startEvent);
+        window.addEventListener('mouseup', endEvent);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startEvent(); });
+        window.addEventListener('touchend', endEvent);
+
+        function shoot(finalPower) {
+            isMoving = true;
+            let pLeft = 50; 
+            let pBottom = 60; 
+            const rad = (angle - 90) * (Math.PI / 180);
+            
+            // VELOCIDADE TRIPLIQUADA AQUI
+            // Aumentei os multiplicadores significativamente
+            let vx = Math.cos(rad) * (finalPower * 3.5); 
+            let vy = Math.sin(rad) * (finalPower * 55); 
+
+            const move = setInterval(() => {
+                pLeft += vx * 0.5;
+                pBottom -= vy * 0.1;
+
+                // Colisões com as bordas
+                if (pLeft < 5 || pLeft > 95) vx *= -1;
+                if (pBottom < 30 || pBottom > 750) vy *= -1;
+
+                player.style.left = `${pLeft}%`;
+                player.style.bottom = `${pBottom}px`;
+
+                // Atrito ligeiramente menor (0.97) para a bola correr mais
+                vx *= 0.97;
+                vy *= 0.97;
+
+                const pRect = player.getBoundingClientRect();
+                const eRect = enemy.getBoundingClientRect();
+                const distance = Math.hypot(pRect.x - eRect.x, pRect.y - eRect.y);
+
+                if (distance < 28) {
+                    clearInterval(move);
+                    hitEnemy();
+                } else if (Math.abs(vx) < 0.2 && Math.abs(vy) < 0.2) {
+                    clearInterval(move);
+                    missed();
+                }
+            }, 16); // 60 FPS (mais suave)
+        }
+
+        function hitEnemy() {
+            enemyLife--;
+            enemyLifeEl.innerText = "❤".repeat(enemyLife) || "MORREU";
+            if (enemyLife <= 0) {
+                showEnd("VOCÊ VENCEU! 🎉");
+            } else {
+                moveEnemy();
+                resetPlayerPosition();
+            }
+        }
+
+        function missed() {
+            playerTries--;
+            triesEl.innerText = playerTries;
+            if (playerTries <= 0) {
+                showEnd("GAME OVER! 💀");
+            } else {
+                resetPlayerPosition();
+            }
+        }
+
+        function moveEnemy() {
+            const newX = 15 + Math.random() * 70;
+            const newY = 100 + Math.random() * 300;
+            enemy.style.left = `${newX}%`;
+            enemy.style.top = `${newY}px`;
+        }
+
+        function resetPlayerPosition() {
+            isMoving = false;
+            player.style.left = '50%';
+            player.style.bottom = '60px';
+        }
+
+        function showEnd(text) {
+            document.getElementById('status-title').innerText = text;
+            msgBox.style.display = 'block';
+        }
+
+        function resetGame() {
+            enemyLife = 3;
+            playerTries = 3;
+            enemyLifeEl.innerText = "❤❤❤";
+            triesEl.innerText = "3";
+            msgBox.style.display = 'none';
+            moveEnemy();
+            resetPlayerPosition();
+        }
+
+        moveEnemy();
+    </script>
+</body>
+</html>

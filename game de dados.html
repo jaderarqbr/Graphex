@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Challenge Fix</title>
+    <style>
+        :root { --p: #6200ee; --s: #00c853; --d: #ff1744; --bg: #f0f2f5; }
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: var(--bg); margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 340px; text-align: center; }
+        #label { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; height: 30px; color: #333; }
+        #dice { width: 80px; height: 80px; background: var(--p); color: white; margin: 20px auto; display: flex; align-items: center; justify-content: center; font-size: 2rem; border-radius: 15px; box-shadow: 0 5px 15px rgba(98,0,238,0.3); }
+        .controls { display: flex; flex-direction: column; gap: 12px; }
+        .row { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 10px; }
+        input { width: 60px; text-align: center; border: 1px solid #ddd; border-radius: 5px; padding: 5px; font-weight: bold; }
+        button { cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
+        .btn-m { width: 30px; height: 30px; }
+        select { padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
+        .btn-main { background: var(--p); color: white; padding: 15px; border-radius: 10px; font-size: 1rem; }
+        .rolling { animation: shake 0.5s infinite; }
+        @keyframes shake { 0% {transform:rotate(0)} 25% {transform:rotate(10deg)} 75% {transform:rotate(-10deg)} 100% {transform:rotate(0)} }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="label">VAMOS JOGAR?</div>
+    <div id="dice">?</div>
+
+    <div class="controls">
+        <div class="row">
+            <span>FACES:</span>
+            <div>
+                <button class="btn-m" onclick="adj('f',-1)">-</button>
+                <input type="number" id="f" value="6">
+                <button class="btn-m" onclick="adj('f',1)">+</button>
+            </div>
+        </div>
+        <div class="row">
+            <span>ADICIONAL:</span>
+            <div>
+                <button class="btn-m" onclick="adj('a',-1)">-</button>
+                <input type="number" id="a" value="0">
+                <button class="btn-m" onclick="adj('a',1)">+</button>
+            </div>
+        </div>
+
+        <select id="rule">
+            <option value="none">Nenhum (Sempre Vitória)</option>
+            <option value="even">Par (Dado puro)</option>
+            <option value="odd">Ímpar (Dado puro)</option>
+            <option value="high">Maior que Metade (Dado + Adic.)</option>
+            <option value="low">Menor que Metade (Dado + Adic.)</option>
+        </select>
+
+        <button class="btn-main" onclick="roll()">BOTTOM CHALLENGE</button>
+        <button onclick="location.reload()" style="background:none; color:gray; text-decoration:underline; font-size:12px;">F5 REGENERAR</button>
+    </div>
+</div>
+
+<script>
+    function adj(id, v) { 
+        const e = document.getElementById(id); 
+        e.value = parseInt(e.value) + v; 
+        if(id === 'f' && e.value < 1) e.value = 1;
+    }
+
+    function roll() {
+        const dice = document.getElementById('dice');
+        const label = document.getElementById('label');
+        const f = parseInt(document.getElementById('f').value);
+        const a = parseInt(document.getElementById('a').value);
+        const r = document.getElementById('rule').value;
+
+        dice.classList.add('rolling');
+        label.innerText = "SORTEANDO...";
+        
+        setTimeout(() => {
+            const res = Math.floor(Math.random() * f) + 1;
+            const final = res + a;
+            const half = f / 2;
+            dice.classList.remove('rolling');
+            dice.innerText = res;
+
+            let win = false;
+            if (r === 'none') win = true;
+            else if (r === 'even') win = (res % 2 === 0);
+            else if (r === 'odd') win = (res % 2 !== 0);
+            else if (r === 'high') win = (final > half);
+            else if (r === 'low') win = (final <= half);
+
+            if (win) {
+                label.innerText = `VITÓRIA! (Total: ${final})`;
+                label.style.color = "var(--s)";
+            } else {
+                label.innerText = `DERROTA! (Total: ${final})`;
+                label.style.color = "var(--d)";
+            }
+        }, 500);
+    }
+</script>
+</body>
+</html>

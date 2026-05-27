@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Área com Dados</title>
+    <style>
+        /* Estilo CSS */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 80%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            border-radius: 8px;
+        }
+
+        .player-score {
+            text-align: center;
+        }
+
+        .blue-info { color: #0000ff; }
+        .red-info { color: #ff0000; }
+
+        .board-container {
+            border: 2px solid #333;
+            width: 400px; /* 20 unidades * 20px/unidade */
+            height: 400px; /* 20 unidades * 20px/unidade */
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            margin-bottom: 20px;
+            background-color: #fff;
+        }
+
+        .grid-cell {
+            border: 1px dashed #eee; /* Linhas de grade */
+            box-sizing: border-box;
+        }
+
+        .blue-area {
+            background-color: #4a90e2; /* Azul para a área */
+        }
+
+        .red-area {
+            background-color: #d0021b; /* Vermelho para a área */
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        /* Estilos dos Dados 3D */
+        .dice-container {
+            perspective: 800px;
+            margin-bottom: 30px;
+            height: 60px; /* Espaço para os dados */
+        }
+
+        .dice-wrapper {
+            display: flex;
+            gap: 20px;
+            transform-style: preserve-3d;
+        }
+
+        .dice {
+            width: 50px;
+            height: 50px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: translateZ(-25px);
+            transition: transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 5px;
+        }
+
+        .dice.rolling {
+            animation: roll-animation 1s infinite;
+        }
+
+        @keyframes roll-animation {
+            0% { transform: translateZ(-25px) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+            50% { transform: translateZ(-25px) rotateX(720deg) rotateY(720deg) rotateZ(720deg); }
+            100% { transform: translateZ(-25px) rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+        }
+
+        .face {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: #ffffff;
+            border: 1px solid #333;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 5px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: #333;
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        /* Posições das faces */
+        .front { transform: rotateY(0deg) translateZ(25px); }
+        .back { transform: rotateY(180deg) translateZ(25px); }
+        .right { transform: rotateY(90deg) translateZ(25px); }
+        .left { transform: rotateY(-90deg) translateZ(25px); }
+        .top { transform: rotateX(90deg) translateZ(25px); }
+        .bottom { transform: rotateX(-90deg) translateZ(25px); }
+
+        /* Posições dos pontos (dots) */
+        /* Face 1 */
+        .face-1 .dot-c { position: static; }
+        /* Face 2 */
+        .face-2 .dot-tl { top: 10px; left: 10px; }
+        .face-2 .dot-br { bottom: 10px; right: 10px; }
+        /* Face 4 */
+        .face-4 .dot-tl { top: 10px; left: 10px; }
+        .face-4 .dot-c { position: static; }
+        .face-4 .dot-br { bottom: 10px; right: 10px; }
+        /* Face 3 */
+        .face-3 .dot-tl { top: 10px; left: 10px; }
+        .face-3 .dot-tr { top: 10px; right: 10px; }
+        .face-3 .dot-bl { bottom: 10px; left: 10px; }
+        .face-3 .dot-br { bottom: 10px; right: 10px; }
+        /* Face 5 */
+        .face-5 .dot-tl { top: 10px; left: 10px; }
+        .face-5 .dot-tr { top: 10px; right: 10px; }
+        .face-5 .dot-c { position: static; }
+        .face-5 .dot-bl { bottom: 10px; left: 10px; }
+        .face-5 .dot-br { bottom: 10px; right: 10px; }
+        /* Face 6 */
+        .face-6 .dot-tl { top: 10px; left: 10px; }
+        .face-6 .dot-tr { top: 10px; right: 10px; }
+        .face-6 .dot-bl { bottom: 10px; left: 10px; }
+        .face-6 .dot-br { bottom: 10px; right: 10px; }
+        .face-6 .dot-cl { top: 50%; transform: translateY(-50%); left: 10px; }
+        .face-6 .dot-cr { top: 50%; transform: translateY(-50%); right: 10px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Jogo de Ocupação de Área</h1>
+
+    <div class="game-info">
+        <div class="player-score blue-info">
+            <h2>AZUL</h2>
+            <p>Soma: <span id="blue-sum">0</span></p>
+            <p>Área Ocupada: <span id="blue-area-score">0</span></p>
+        </div>
+        <div class="player-score red-info">
+            <h2>VERMELHO</h2>
+            <p>Soma: <span id="red-sum">0</span></p>
+            <p>Área Ocupada: <span id="red-area-score">0</span></p>
+        </div>
+    </div>
+
+    <div class="dice-container">
+        <div class="dice-wrapper">
+            <div id="dice1" class="dice">
+                <div class="face front face-1"><span class="dot dot-c"></span></div>
+                <div class="face back face-6"><span class="dot dot-tl"></span><span class="dot dot-tr"></span><span class="dot dot-bl"></span><span class="dot dot-br"></span><span class="dot dot-cl"></span><span class="dot dot-cr"></span></div>
+                <div class="face right face-4"><span class="dot dot-tl"></span><span class="dot dot-c"></span><span class="dot dot-br"></span></div>
+                <div class="face left face-3"><span class="dot dot-tl"></span><span class="dot dot-tr"></span><span class="dot dot-bl"></span><span class="dot dot-br"></span></div>
+                <div class="face top face-5"><span class="dot dot-tl"></span><span class="dot dot-tr"></span><span class="dot dot-c"></span><span class="dot dot-bl"></span><span class="dot dot-br"></span></div>
+                <div class="face bottom face-2"><span class="dot dot-tl"></span><span class="dot dot-br"></span></div>
+            </div>
+            <div id="dice2" class="dice">
+                <div class="face front face-1"><span class="dot dot-c"></span></div>
+                <div class="face back face-6"><span class="dot dot-tl"></span><span class="dot dot-tr"></span><span class="dot dot-bl"></span><span class="dot dot-br"></span><span class="dot dot-cl"></span><span class="dot dot-cr"></span></div>
+                <div class="face right face-3"><span class="dot dot-tl"></span><span class="dot dot-c"></span><span class="dot dot-br"></span></div>
+                <div class="face left face-4"><span class="dot dot-tl"></span><span class="dot dot-tr"></span><span class="dot dot-bl"></span><span class="dot dot-br"></span></div>
+                <div class="face top face-5"><span class="dot dot-tl"></span><span class="dot dot-tr"></span><span class="dot dot-c"></span><span class="dot dot-bl"></span><span class="dot dot-br"></span></div>
+                <div class="face bottom face-2"><span class="dot dot-tl"></span><span class="dot dot-br"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <button id="roll-button">Lançar Dados (Turno do AZUL)</button>
+
+    <div id="board" class="board-container">
+        </div>
+
+    <div id="message" class="message"></div>
+
+    <script>
+        // Lógica JavaScript
+        const BOARD_SIZE = 20;
+        const board = document.getElementById('board');
+        const rollButton = document.getElementById('roll-button');
+        const messageDisplay = document.getElementById('message');
+        const blueSumDisplay = document.getElementById('blue-sum');
+        const redSumDisplay = document.getElementById('red-sum');
+        const blueAreaScoreDisplay = document.getElementById('blue-area-score');
+        const redAreaScoreDisplay = document.getElementById('red-area-score');
+        const dice1El = document.getElementById('dice1');
+        const dice2El = document.getElementById('dice2');
+
+        let isBlueTurn = true;
+        let blueArea = 0;
+        let redArea = 0;
+        let boardState = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(null)); // null: livre, 'blue', 'red'
+        let gameActive = true;
+        let turnCount = 0; // Para controlar o número de jogadas (opcional)
+
+        // Mapeamento de valor do dado para rotação 3D (para animação)
+        const rotationMap = {
+            1: 'rotateX(0deg) rotateY(0deg)',
+            6: 'rotateX(180deg) rotateY(0deg)',
+            3: 'rotateY(90deg)',
+            4: 'rotateY(-90deg)',
+            5: 'rotateX(-90deg)',
+            2: 'rotateX(90deg)'
+        };
+
+        // 1. Inicializa o tabuleiro
+        function initializeBoard() {
+            board.innerHTML = '';
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        // 2. Lógica de Rolar Dados
+        function rollDice() {
+            if (!gameActive) return;
+            rollButton.disabled = true;
+            messageDisplay.textContent = `Lançando dados para ${isBlueTurn ? 'AZUL' : 'VERMELHO'}...`;
+
+            // Valores aleatórios para os dados d6
+            const d1 = Math.floor(Math.random() * 6) + 1;
+            const d2 = Math.floor(Math.random() * 6) + 1;
+            const sum = d1 + d2;
+            const currentPlayer = isBlueTurn ? 'blue' : 'red';
+
+            // Aplica a animação de rolamento
+            dice1El.classList.add('rolling');
+            dice2El.classList.add('rolling');
+
+            setTimeout(() => {
+                // Remove a animação de rolamento
+                dice1El.classList.remove('rolling');
+                dice2El.classList.remove('rolling');
+
+                // Aplica a rotação final para mostrar o resultado
+                dice1El.style.transform = `translateZ(-25px) ${rotationMap[d1]}`;
+                dice2El.style.transform = `translateZ(-25px) ${rotationMap[d2]}`;
+                
+                // Exibe os resultados
+                messageDisplay.textContent = `Resultado ${isBlueTurn ? 'AZUL' : 'VERMELHO'}: D1=${d1}, D2=${d2}. Soma=${sum}.`;
+
+                // Aplica a lógica do jogo
+                handleDiceResult(d1, d2, currentPlayer);
+
+                // Atualiza o placar e troca o turno
+                updateScoreDisplay(currentPlayer, sum);
+
+                // Prepara para o próximo turno
+                isBlueTurn = !isBlueTurn;
+                rollButton.textContent = `Lançar Dados (Turno do ${isBlueTurn ? 'AZUL' : 'VERMELHO'})`;
+                rollButton.disabled = false;
+
+                // Verifica condição de fim de jogo (opcional: após 10 turnos)
+                turnCount++;
+                if (turnCount >= 20) { // Exemplo: 10 turnos para cada
+                    endGame();
+                }
+
+            }, 1500); // 1.5 segundos de animação
+        }
+
+        // 3. Lógica do Jogo - Ocupar Área
+        function handleDiceResult(d1, d2, player) {
+            const width = d1;
+            const height = d2;
+            let areaOccupied = false;
+
+            // Tenta posicionar o retângulo (b, h)
+            // Itera sobre as células livres para encontrar o primeiro espaço (0,0) disponível
+            for (let r = 0; r <= BOARD_SIZE - height; r++) {
+                for (let c = 0; c <= BOARD_SIZE - width; c++) {
+                    if (isAreaFree(r, c, height, width)) {
+                        fillArea(r, c, height, width, player);
+                        areaOccupied = true;
+                        if (player === 'blue') {
+                            blueArea += (width * height);
+                        } else {
+                            redArea += (width * height);
+                        }
+                        updateAreaScore(player, width * height);
+                        return; // Ocupou o primeiro espaço encontrado e sai
+                    }
+                }
+            }
+            
+            // Se não encontrou espaço para (b, h), tenta para (h, b)
+            if (!areaOccupied) {
+                const altWidth = d2;
+                const altHeight = d1;
+                for (let r = 0; r <= BOARD_SIZE - altHeight; r++) {
+                    for (let c = 0; c <= BOARD_SIZE - altWidth; c++) {
+                        if (isAreaFree(r, c, altHeight, altWidth)) {
+                            fillArea(r, c, altHeight, altWidth, player);
+                            areaOccupied = true;
+                             if (player === 'blue') {
+                                blueArea += (altWidth * altHeight);
+                            } else {
+                                redArea += (altWidth * altHeight);
+                            }
+                            updateAreaScore(player, altWidth * altHeight);
+                            return; // Ocupou o primeiro espaço encontrado e sai
+                        }
+                    }
+                }
+            }
+
+            if (!areaOccupied) {
+                messageDisplay.textContent += ` O jogador ${player.toUpperCase()} não conseguiu colocar a peça (${d1}x${d2} ou ${d2}x${d1}).`;
+                checkEndGameCondition();
+            }
+        }
+
+        // 4. Funções Auxiliares do Tabuleiro
+        function isAreaFree(startRow, startCol, height, width) {
+            // Verifica se a área (startRow, startCol) até (startRow+height-1, startCol+width-1) está livre
+            for (let r = startRow; r < startRow + height; r++) {
+                for (let c = startCol; c < startCol + width; c++) {
+                    if (r >= BOARD_SIZE || c >= BOARD_SIZE || boardState[r][c] !== null) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function fillArea(startRow, startCol, height, width, player) {
+            // Ocupa a área no estado do tabuleiro e na interface
+            for (let r = startRow; r < startRow + height; r++) {
+                for (let c = startCol; c < startCol + width; c++) {
+                    boardState[r][c] = player;
+                    const cellIndex = r * BOARD_SIZE + c;
+                    const cell = board.children[cellIndex];
+                    cell.classList.add(`${player}-area`);
+                }
+            }
+        }
+
+        function updateScoreDisplay(player, sum) {
+            if (player === 'blue') {
+                blueSumDisplay.textContent = sum;
+            } else {
+                redSumDisplay.textContent = sum;
+            }
+        }
+
+        function updateAreaScore(player, addedArea) {
+             if (player === 'blue') {
+                blueAreaScoreDisplay.textContent = blueArea;
+            } else {
+                redAreaScoreDisplay.textContent = redArea;
+            }
+        }
+
+        function checkEndGameCondition() {
+            // Verifica se um jogador não consegue mais jogar
+            // Simplificado: se a área não foi ocupada, a lógica de fim de jogo é mais complexa,
+            // mas podemos usar um número fixo de turnos para simplificar.
+            // Aqui, apenas exibe a mensagem de que não conseguiu posicionar.
+        }
+
+        // 5. Função de Fim de Jogo
+        function endGame() {
+            gameActive = false;
+            rollButton.disabled = true;
+            rollButton.textContent = "FIM DO JOGO";
+
+            let winnerMsg;
+            if (blueArea > redArea) {
+                winnerMsg = "O AZUL venceu por ocupar mais área!";
+                messageDisplay.classList.add('blue-info');
+            } else if (redArea > blueArea) {
+                winnerMsg = "O VERMELHO venceu por ocupar mais área!";
+                messageDisplay.classList.add('red-info');
+            } else {
+                winnerMsg = "EMPATE! A área ocupada é a mesma.";
+            }
+
+            messageDisplay.textContent = winnerMsg;
+        }
+
+        // Inicialização
+        initializeBoard();
+        rollButton.addEventListener('click', rollDice);
+
+        // Define a rotação inicial (face 1)
+        dice1El.style.transform = rotationMap[1];
+        dice2El.style.transform = rotationMap[1];
+
+    </script>
+
+</body>
+</html>

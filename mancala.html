@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mancala Olho de Gato - FX Edition</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --board-color: #5d4037;
+            --pit-color: #3e2723;
+            --p1-color: #00e5ff;
+            --p2-color: #ff5252;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Notificações de Jogo */
+        #game-msg {
+            position: fixed;
+            top: 80px;
+            background: rgba(255, 215, 0, 0.9);
+            color: black;
+            padding: 10px 30px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            transform: translateY(-150px);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        #game-msg.show { transform: translateY(0); }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            width: 100%;
+            justify-content: center;
+            background: #1a1a1a;
+        }
+
+        .rotate-btn {
+            background: #444; border: none; color: white; width: 40px; height: 40px;
+            border-radius: 50%; cursor: pointer; font-size: 18px;
+        }
+
+        /* Tabuleiro */
+        .board {
+            background-color: var(--board-color);
+            border-radius: 40px;
+            display: flex;
+            padding: 20px;
+            gap: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+            border: 6px solid #4e342e;
+            position: relative;
+        }
+
+        body.vertical .board { flex-direction: column; width: 85vw; max-width: 380px; }
+        body.horizontal .board { flex-direction: row; width: 95vw; max-width: 850px; align-items: center; }
+
+        .kalaha {
+            background-color: var(--pit-color);
+            border-radius: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: inset 0 8px 15px rgba(0,0,0,0.5);
+        }
+
+        body.vertical .kalaha { height: 100px; }
+        body.horizontal .kalaha { width: 80px; height: 250px; }
+
+        .kalaha-counter { font-size: 2rem; font-weight: bold; color: #ffd700; z-index: 2; }
+
+        .pits-grid { display: flex; flex: 1; }
+        body.vertical .pits-grid { flex-direction: row; justify-content: space-between; }
+        body.horizontal .pits-grid { flex-direction: column; gap: 20px; }
+
+        .column { display: flex; flex: 1; }
+        body.vertical .column { flex-direction: column; justify-content: space-around; }
+        body.horizontal .column { flex-direction: row; justify-content: space-around; }
+
+        .pit {
+            width: 60px; height: 60px;
+            background-color: var(--pit-color);
+            border-radius: 50%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            box-shadow: inset 0 5px 10px rgba(0,0,0,0.6);
+            border: 2px solid transparent;
+            touch-action: manipulation;
+        }
+
+        .pit.active { border-color: gold; box-shadow: 0 0 10px gold; }
+
+        .pit-counter {
+            position: absolute; background: rgba(0,0,0,0.7);
+            border-radius: 50%; width: 20px; height: 20px;
+            font-size: 0.7rem; display: flex; align-items: center;
+            justify-content: center; top: -8px; left: 50%; transform: translateX(-50%);
+        }
+
+        /* Bilas Olho de Gato */
+        .seed {
+            width: 15px; height: 15px;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            transition: all 0.6s cubic-bezier(0.5, 0, 0.5, 1);
+            z-index: 5;
+        }
+
+        .seed.flying { z-index: 100; transition: all 0.8s ease-in; }
+
+        /* Cores */
+        .s-0 { background: radial-gradient(circle at 35% 35%, #fff, #4fc3f7, #01579b); }
+        .s-1 { background: radial-gradient(circle at 35% 35%, #fff, #ff8a65, #bf360c); }
+        .s-2 { background: radial-gradient(circle at 35% 35%, #fff, #aed581, #33691e); }
+        .s-3 { background: radial-gradient(circle at 35% 35%, #fff, #ba68c8, #7b1fa2); }
+
+        .controls { margin: 20px; }
+        button.reset { padding: 12px 30px; border-radius: 20px; border: none; background: #c62828; color: white; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body class="vertical">
+
+    <div id="game-msg">MENSAGEM</div>
+
+    <div class="header">
+        <div id="status" style="font-size: 1.5rem; font-weight: bold;">VEZ DO JOGADOR 1</div>
+        <button class="rotate-btn" onclick="toggleOrientation()">🔄</button>
+    </div>
+
+    <div class="board" id="game-board">
+        <div id="pit-13" class="kalaha" data-index="13">
+            <div class="kalaha-counter" id="count-13">0</div>
+        </div>
+
+        <div class="pits-grid">
+            <div class="column">
+                <div id="pit-12" class="pit" data-index="12"></div>
+                <div id="pit-11" class="pit" data-index="11"></div>
+                <div id="pit-10" class="pit" data-index="10"></div>
+                <div id="pit-9" class="pit" data-index="9"></div>
+                <div id="pit-8" class="pit" data-index="8"></div>
+                <div id="pit-7" class="pit" data-index="7"></div>
+            </div>
+            <div class="column">
+                <div id="pit-5" class="pit" data-index="5"></div>
+                <div id="pit-4" class="pit" data-index="4"></div>
+                <div id="pit-3" class="pit" data-index="3"></div>
+                <div id="pit-2" class="pit" data-index="2"></div>
+                <div id="pit-1" class="pit" data-index="1"></div>
+                <div id="pit-0" class="pit" data-index="0"></div>
+            </div>
+        </div>
+
+        <div id="pit-6" class="kalaha" data-index="6">
+            <div class="kalaha-counter" id="count-6">0</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="reset" onclick="resetGame()">REINICIAR</button>
+    </div>
+
+    <script>
+        let boardState = [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0];
+        let currentPlayer = 1;
+        let gameOver = false;
+
+        // --- SISTEMA DE ÁUDIO SINTÉTICO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playGlassSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1200 + Math.random() * 500, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function showMsg(text) {
+            const el = document.getElementById('game-msg');
+            el.innerText = text;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 2000);
+        }
+
+        function toggleOrientation() {
+            document.body.classList.toggle('vertical');
+            document.body.classList.toggle('horizontal');
+            setTimeout(renderBoard, 300); // Re-centraliza sementes após transição
+        }
+
+        function renderBoard() {
+            boardState.forEach((seeds, index) => {
+                const pitEl = document.getElementById(`pit-${index}`);
+                const counterEl = (index === 6 || index === 13) 
+                    ? document.getElementById(`count-${index}`) 
+                    : null;
+
+                if(counterEl) counterEl.innerText = seeds;
+
+                // Gerencia sementes visuais dentro da cava
+                let visualSeeds = pitEl.querySelectorAll('.seed:not(.flying)');
+                if (visualSeeds.length !== seeds && index !== 6 && index !== 13) {
+                    pitEl.innerHTML = `<div class="pit-counter">${seeds}</div>`;
+                    for (let i = 0; i < Math.min(seeds, 15); i++) {
+                        createVisualSeed(pitEl);
+                    }
+                }
+
+                pitEl.classList.remove('active');
+                if (!gameOver && index !== 6 && index !== 13) {
+                    if ((currentPlayer === 1 && index <= 5 && seeds > 0) || 
+                        (currentPlayer === 2 && index >= 7 && index <= 12 && seeds > 0)) {
+                        pitEl.classList.add('active');
+                    }
+                }
+            });
+        }
+
+        function createVisualSeed(parentEl) {
+            const seed = document.createElement('div');
+            seed.className = `seed s-${Math.floor(Math.random()*4)}`;
+            // Posição randômica dentro da cava circular
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 15;
+            seed.style.left = `calc(50% - 7px + ${Math.cos(angle) * radius}px)`;
+            seed.style.top = `calc(50% - 7px + ${Math.sin(angle) * radius}px)`;
+            parentEl.appendChild(seed);
+            return seed;
+        }
+
+        function animateCapture(fromIndex, toKalahaIndex) {
+            const fromEl = document.getElementById(`pit-${fromIndex}`);
+            const toEl = document.getElementById(`pit-${toKalahaIndex}`);
+            const seeds = fromEl.querySelectorAll('.seed');
+            
+            const toRect = toEl.getBoundingClientRect();
+
+            seeds.forEach((seed, i) => {
+                setTimeout(() => {
+                    const fromRect = seed.getBoundingClientRect();
+                    seed.classList.add('flying');
+                    seed.style.position = 'fixed';
+                    seed.style.left = fromRect.left + 'px';
+                    seed.style.top = fromRect.top + 'px';
+                    
+                    // Pequeno delay para o browser processar o fixed
+                    requestAnimationFrame(() => {
+                        seed.style.left = (toRect.left + toRect.width/2) + 'px';
+                        seed.style.top = (toRect.top + toRect.height/2) + 'px';
+                        seed.style.opacity = '0';
+                    });
+                    
+                    playGlassSound();
+                    setTimeout(() => seed.remove(), 800);
+                }, i * 100);
+            });
+        }
+
+        async function handleMove(index) {
+            if (gameOver || audioCtx.state === 'suspended') audioCtx.resume();
+            if (currentPlayer === 1 && (index < 0 || index > 5)) return;
+            if (currentPlayer === 2 && (index < 7 || index > 12)) return;
+            if (boardState[index] === 0) return;
+
+            let seeds = boardState[index];
+            boardState[index] = 0;
+            renderBoard();
+            
+            let current = index;
+            for (let i = 0; i < seeds; i++) {
+                current = (current + 1) % 14;
+                if (currentPlayer === 1 && current === 13) { i--; continue; }
+                if (currentPlayer === 2 && current === 6) { i--; continue; }
+                
+                boardState[current]++;
+                playGlassSound();
+                renderBoard();
+                await new Promise(r => setTimeout(r, 200)); // Delay para ver a semeadura
+            }
+
+            // Regra de Captura
+            if (boardState[current] === 1 && current !== 6 && current !== 13) {
+                const isMySide = (currentPlayer === 1 && current <= 5) || (currentPlayer === 2 && current >= 7 && current <= 12);
+                const opposite = 12 - current;
+                if (isMySide && boardState[opposite] > 0) {
+                    showMsg("CAPTURA! 💎");
+                    const captured = boardState[opposite] + 1;
+                    
+                    animateCapture(current, currentPlayer === 1 ? 6 : 13);
+                    animateCapture(opposite, currentPlayer === 1 ? 6 : 13);
+                    
+                    boardState[currentPlayer === 1 ? 6 : 13] += captured;
+                    boardState[current] = 0;
+                    boardState[opposite] = 0;
+                    
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+
+            // Regra Turno Extra
+            let extraTurn = (currentPlayer === 1 && current === 6) || (currentPlayer === 2 && current === 13);
+            if (extraTurn) {
+                showMsg("TURNO EXTRA! ✨");
+            } else {
+                currentPlayer = currentPlayer === 1 ? 2 : 1;
+            }
+
+            checkGameOver();
+            renderBoard();
+            updateStatusUI();
+        }
+
+        function updateStatusUI() {
+            const s = document.getElementById('status');
+            s.innerText = gameOver ? "FIM DE JOGO!" : `VEZ: JOGADOR ${currentPlayer}`;
+            s.style.color = currentPlayer === 1 ? 'var(--p1-color)' : 'var(--p2-color)';
+        }
+
+        function checkGameOver() {
+            const p1Empty = boardState.slice(0, 6).every(s => s === 0);
+            const p2Empty = boardState.slice(7, 13).every(s => s === 0);
+            if (p1Empty || p2Empty) {
+                gameOver = true;
+                for(let i=0; i<6; i++) { boardState[6]+=boardState[i]; boardState[i]=0; }
+                for(let i=7; i<13; i++) { boardState[13]+=boardState[i]; boardState[i]=0; }
+                showMsg("FIM DE PARTIDA!");
+            }
+        }
+
+        function resetGame() {
+            boardState = [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0];
+            currentPlayer = 1;
+            gameOver = false;
+            renderBoard();
+            updateStatusUI();
+        }
+
+        document.querySelectorAll('.pit').forEach(p => p.addEventListener('click', () => handleMove(parseInt(p.dataset.index))));
+        renderBoard();
+    </script>
+</body>
+</html>

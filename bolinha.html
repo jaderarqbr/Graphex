@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bolinha de Gude - Buraco</title>
+    <style>
+        * { box-sizing: border-box; touch-action: none; }
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #333;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #game-canvas {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 600px;
+            max-height: 800px;
+            background: radial-gradient(circle, #8b4513 20%, #654321 100%); /* Cor de terra */
+            border: 8px solid #442200;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        /* O Buraco */
+        #hole {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: black;
+            border-radius: 50%;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: inset 0 5px 15px rgba(255,255,255,0.2);
+        }
+
+        /* A Bolinha */
+        #marble {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 30% 30%, #5dade2, #2e86c1);
+            border-radius: 50%;
+            bottom: 100px;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            box-shadow: 2px 5px 10px rgba(0,0,0,0.4);
+        }
+
+        /* Seta de Mira */
+        #arrow {
+            position: absolute;
+            width: 4px;
+            height: 80px;
+            background: linear-gradient(to top, orange, red);
+            bottom: 115px;
+            left: 50%;
+            transform-origin: bottom center;
+            display: none;
+            z-index: 5;
+        }
+        #arrow::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -8px;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 15px solid red;
+        }
+
+        /* Barra de Força */
+        #power-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid #fff;
+            display: none;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #power-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
+        }
+
+        /* Placar e Info */
+        #ui {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .stat { font-size: 20px; font-weight: bold; margin: 0 15px; }
+    </style>
+</head>
+<body>
+
+    <div id="game-canvas">
+        <div id="ui">
+            <span class="stat">Acertos: <span id="score">0</span></span>
+            <span class="stat">Força: <span id="power-val">0</span></span>
+        </div>
+        
+        <div id="hole"></div>
+        <div id="arrow"></div>
+        <div id="marble"></div>
+
+        <div id="power-container">
+            <div id="power-bar"></div>
+        </div>
+    </div>
+
+    <script>
+        const marble = document.getElementById('marble');
+        const hole = document.getElementById('hole');
+        const arrow = document.getElementById('arrow');
+        const powerBar = document.getElementById('power-bar');
+        const powerContainer = document.getElementById('power-container');
+        const scoreEl = document.getElementById('score');
+        const powerValEl = document.getElementById('power-val');
+        const canvas = document.getElementById('game-canvas');
+
+        let isCharging = false;
+        let power = 1;
+        let angle = 0;
+        let angleDir = 1;
+        let powerDir = 1;
+        let score = 0;
+        let isMoving = false;
+
+        // Animação da Mira e Força
+        function updateAim() {
+            if (isCharging) {
+                // Oscila a mira em 60 graus (-30 a 30)
+                angle += 1.5 * angleDir;
+                if (Math.abs(angle) > 30) angleDir *= -1;
+                arrow.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+
+                // Oscila a força de 1 a 10
+                power += 0.15 * powerDir;
+                if (power > 10 || power < 1) powerDir *= -1;
+                
+                const pWidth = (power / 10) * 100;
+                powerBar.style.width = `${pWidth}%`;
+                powerValEl.innerText = Math.floor(power);
+            }
+            requestAnimationFrame(updateAim);
+        }
+        updateAim();
+
+        // Eventos para Mobile e Desktop
+        canvas.addEventListener('mousedown', startCharge);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startCharge(); });
+
+        window.addEventListener('mouseup', releaseCharge);
+        window.addEventListener('touchend', releaseCharge);
+
+        function startCharge() {
+            if (isMoving) return;
+            isCharging = true;
+            power = 1;
+            arrow.style.display = 'block';
+            powerContainer.style.display = 'block';
+        }
+
+        function releaseCharge() {
+            if (!isCharging) return;
+            isCharging = false;
+            isMoving = true;
+            arrow.style.display = 'none';
+            powerContainer.style.display = 'none';
+            
+            shoot(angle, power);
+        }
+
+        function shoot(finalAngle, finalPower) {
+            let posX = 50; // Porcentagem
+            let posY = 10; // Distância do fundo em pixels (ajustado para % depois)
+            
+            let speed = finalPower * 0.8;
+            const rad = (finalAngle - 90) * (Math.PI / 180);
+            
+            let vx = Math.cos(rad) * speed;
+            let vy = Math.sin(rad) * speed;
+
+            const moveInterval = setInterval(() => {
+                const currentLeft = parseFloat(marble.style.left || 50);
+                const currentBottom = parseFloat(marble.style.bottom || 100);
+
+                // Aplica movimento
+                let newLeft = currentLeft + (vx * 0.5);
+                let newBottom = currentBottom - (vy * 5);
+
+                // Colisão com laterais
+                if (newLeft < 5 || newLeft > 95) vx *= -1;
+                if (newBottom < 30 || newBottom > 95 * 8) vy *= -1; // Topo e base
+
+                marble.style.left = `${newLeft}%`;
+                marble.style.bottom = `${newBottom}px`;
+
+                // Atrito
+                vx *= 0.97;
+                vy *= 0.97;
+
+                // Verificar se caiu no buraco
+                const mRect = marble.getBoundingClientRect();
+                const hRect = hole.getBoundingClientRect();
+                const dist = Math.hypot(mRect.x - hRect.x, mRect.y - hRect.y);
+
+                if (dist < 35 && Math.abs(vx) < 2) {
+                    clearInterval(moveInterval);
+                    score++;
+                    scoreEl.innerText = score;
+                    resetPosition();
+                }
+
+                // Parar por atrito
+                if (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) {
+                    clearInterval(moveInterval);
+                    resetPosition();
+                }
+            }, 20);
+        }
+
+        function resetPosition() {
+            isMoving = false;
+            marble.style.left = `50%`;
+            marble.style.bottom = `100px`;
+            powerValEl.innerText = "0";
+        }
+    </script>
+</body>
+</html>

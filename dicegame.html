@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio do Dado Mágico</title>
+    <style>
+        :root {
+            --primary: #6200ee;
+            --success: #4caf50;
+            --danger: #f44336;
+            --bg: #f5f5f7;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--bg);
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 350px;
+        }
+
+        /* Placar */
+        #status-label {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            height: 2rem;
+            color: #333;
+        }
+
+        /* Área do Dado */
+        .dice-container {
+            perspective: 1000px;
+            margin: 30px auto;
+            width: 80px;
+            height: 80px;
+        }
+
+        #dice {
+            width: 100%;
+            height: 100%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            border-radius: 12px;
+            transition: transform 0.5s ease;
+            box-shadow: 0 5px 15px rgba(98, 0, 238, 0.3);
+        }
+
+        .rolling {
+            animation: shake 0.5s infinite;
+        }
+
+        @keyframes shake {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(10deg) scale(1.1); }
+            75% { transform: rotate(-10deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+
+        /* Controles */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .face-editor {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+
+        .btn-qty {
+            background: #e0e0e0;
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+
+        #face-input {
+            width: 80px;
+            text-align: center;
+            font-size: 1.2rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            font-size: 1rem;
+        }
+
+        .btn-challenge {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .btn-challenge:hover { background: #4b00b8; }
+
+        .btn-refresh {
+            background: none;
+            color: #888;
+            text-decoration: underline;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="status-label">Escolha sua sorte!</div>
+
+    <div class="dice-container">
+        <div id="dice">?</div>
+    </div>
+
+    <div class="controls">
+        <div class="face-editor">
+            <button class="btn-qty" onclick="changeFaces(-1)">-</button>
+            <input type="number" id="face-input" value="6" min="1" max="9999">
+            <button class="btn-qty" onclick="changeFaces(1)">+</button>
+        </div>
+
+        <select id="rule-lookup">
+            <option value="par">Número Par</option>
+            <option value="impar">Número Ímpar</option>
+            <option value="maior">Maior que a metade</option>
+            <option value="menor">Menor ou igual à metade</option>
+        </select>
+
+        <button class="btn-challenge" onclick="rollDice()">BOTTOM CHALLENGE</button>
+        <button class="btn-refresh" onclick="location.reload()">F5 - Reiniciar</button>
+    </div>
+</div>
+
+<script>
+    function changeFaces(amount) {
+        const input = document.getElementById('face-input');
+        let newVal = parseInt(input.value) + amount;
+        if (newVal >= 1 && newVal <= 9999) {
+            input.value = newVal;
+        }
+    }
+
+    function rollDice() {
+        const diceElement = document.getElementById('dice');
+        const statusLabel = document.getElementById('status-label');
+        const faces = parseInt(document.getElementById('face-input').value);
+        const rule = document.getElementById('rule-lookup').value;
+
+        // Reset visual
+        diceElement.classList.add('rolling');
+        statusLabel.innerText = "Sorteando...";
+        statusLabel.style.color = "#333";
+
+        setTimeout(() => {
+            const result = Math.floor(Math.random() * faces) + 1;
+            diceElement.classList.remove('rolling');
+            diceElement.innerText = result;
+
+            let won = false;
+            const metade = faces / 2;
+
+            // Lógica das Regras
+            switch(rule) {
+                case 'par': won = (result % 2 === 0); break;
+                case 'impar': won = (result % 2 !== 0); break;
+                case 'maior': won = (result > metade); break;
+                case 'menor': won = (result <= metade); break;
+            }
+
+            if (won) {
+                statusLabel.innerText = "VITÓRIA! 🎉";
+                statusLabel.style.color = "var(--success)";
+            } else {
+                statusLabel.innerText = "DERROTA... ❌";
+                statusLabel.style.color = "var(--danger)";
+            }
+        }, 600);
+    }
+</script>
+
+</body>
+</html>
