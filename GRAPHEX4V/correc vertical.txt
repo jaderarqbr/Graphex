@@ -1,0 +1,80 @@
+Você está absolutamente certo em pedir um manual de etapas preciso! Minha instrução anterior estava muito dispersa, e com um código grande como o seu, a precisão é fundamental. Peço desculpas pela falta de clareza.
+A partir de agora, vou me comportar como seu Instrutor Técnico, fornecendo um Manual de Implementação de Rotação de Texto passo a passo, com indicações exatas de onde colar e substituir no seu arquivo index_085359.html.
+📐 Manual de Implementação: Checkbox "Vertical"
+O objetivo é adicionar um checkbox na interface de propriedades do texto que gire o texto em 90^\circ (Vertical) quando marcado.
+📌 Etapa 1: Adicionar o Checkbox HTML
+Você precisa adicionar o checkbox ao painel de propriedades que aparece ao selecionar um objeto (o seu #propertiesPane).
+Ação: Localize a tag <div id="propertiesPane"> (ou a área onde você edita as propriedades do texto) e adicione este bloco de código HTML lá.
+<label style="display:block; margin-top: 8px;">
+    <input type="checkbox" id="textVerticalMode" onchange="toggleTextRotation(this.checked)"> Texto Vertical
+</label>
+
+📌 Etapa 2: Adicionar a Função de Controle (JavaScript)
+Esta função será chamada pelo checkbox e fará a mágica de alterar a propriedade rotation do objeto de texto para 90^\circ ou 0^\circ.
+Ação: Role até o final do seu arquivo JavaScript (antes da tag </body>) e cole esta nova função:
+// =========================================================
+// NOVO: Função JavaScript para Alternar Rotação (toggleTextRotation)
+// Adicionar ao FINAL DO SEU SCRIPT (antes do </body>)
+// =========================================================
+function toggleTextRotation(isVertical) {
+    if (!selectedObject || selectedObject.type !== 'text') {
+        return; 
+    }
+    
+    // Define a rotação: 90 para Vertical, 0 para Horizontal
+    selectedObject.rotation = isVertical ? 90 : 0;
+
+    // Redesenha a tela e salva para o Desfazer/Refazer
+    redrawAll();
+    pushUndo();
+    showToast(`Orientação do texto alterada para ${isVertical ? 'Vertical' : 'Horizontal'}.`);
+}
+
+📌 Etapa 3: Carregar o Estado do Checkbox (JavaScript)
+Se você salvar e carregar um texto que está na vertical, o checkbox precisa refletir isso.
+Ação: Localize a sua função que preenche as propriedades do objeto selecionado. Essa função deve se chamar algo como updatePropertiesPane(obj) ou showProperties(obj).
+Dentro dessa função, dentro do bloco if (obj.type === 'text'), adicione este código:
+// CÓDIGO A ADICIONAR DENTRO DA FUNÇÃO updatePropertiesPane(obj) ou similar
+// E DENTRO DO BLOCO 'if (obj.type === 'text')'
+
+const verticalCheckbox = document.getElementById('textVerticalMode');
+if (verticalCheckbox) {
+    // Marca o checkbox se a rotação do objeto for 90 graus
+    verticalCheckbox.checked = (obj.rotation === 90);
+}
+
+📌 Etapa 4: Modificar o Desenho (O Ponto Mais Crítico)
+Esta é a etapa mais importante. Precisamos garantir que o Canvas saiba como girar o texto antes de desenhá-lo.
+Ação: Localize a sua função de redesenho (redrawAll() ou a função que percorre a array objects para desenhar). Localize o trecho if (obj.type === 'text') e SUBSTITUA todo o código de desenho de texto por este novo bloco otimizado:
+// =========================================================
+// SUBSTITUIÇÃO na sua função de DESENHO (Ex: redrawAll())
+// SUBSTITUA TODO O CÓDIGO ANTERIOR DENTRO DE 'if (obj.type === 'text')'
+// =========================================================
+if (obj.type === 'text') {
+    const rotationAngle = obj.rotation * Math.PI / 180 || 0;
+    
+    context.fillStyle = obj.color || 'black';
+    context.font = `${obj.fontSize || 16}px ${obj.fontFamily || 'Arial'}`;
+
+    // === INÍCIO DA ROTAÇÃO ===
+    context.save(); 
+    
+    // Move o ponto de origem para o centro do texto
+    context.translate(obj.x, obj.y);
+    
+    // Aplica a rotação
+    context.rotate(rotationAngle);
+    
+    // Centraliza o texto no novo ponto de origem para que ele gire corretamente
+    context.textAlign = 'center';
+    context.textBaseline = 'middle'; 
+    
+    context.fillText(obj.text, 0, 0); 
+
+    // Restaura o Canvas
+    context.restore(); 
+    // === FIM DA ROTAÇÃO ===
+}
+
+Siga estas quatro etapas, e sua nova e intuitiva funcionalidade de texto vertical estará pronta para o teste!
+Próximo Passo: Se você puder me fornecer o trecho exato do seu HTML que contém o #propertiesPane, eu posso te mostrar exatamente onde encaixar a Etapa 1.
