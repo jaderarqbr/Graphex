@@ -1,0 +1,32 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabuleiro Tafl Interativo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Tabuleiro Tafl 9x9</h1>
+
+    <div id="pieces-stock">
+        <h2>Peças Disponíveis</h2>
+        <div class="piece-container" id="king-white-stock">
+            <div class="piece king" draggable="true" data-type="king" data-color="white">♔</div>
+        </div>
+        <div class="piece-container" id="pawn-black-stock">
+            <div class="piece pawn black" draggable="true" data-type="pawn" data-color="black">♟</div>
+        </div>
+        <div class="piece-container" id="pawn-white-stock">
+            <div class="piece pawn white" draggable="true" data-type="pawn" data-color="white">♙</div>
+        </div>
+    </div>
+
+    <div id="board">
+        </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
