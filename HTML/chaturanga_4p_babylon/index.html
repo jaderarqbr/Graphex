@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chaturanga 4 players — Babylon.js</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="ui">
+    <div class="card">
+      <div id="playerBadge">Vez: <span id="currentPlayerName">Vermelho</span></div>
+      <div class="hint">Clique em uma peça para selecionar. Clique em um quadrado para mover.</div>
+    </div>
+    <div class="card" id="log">
+      <strong>Registro de movimentos</strong>
+      <div id="moves"></div>
+    </div>
+  </div>
+  <div id="controls">
+    <button id="rotateBoard">Virar para próximo jogador</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+
+  <div id="canvasContainer">
+    <canvas id="renderCanvas"></canvas>
+  </div>
+
+  <!-- Babylon.js CDN -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
