@@ -1,0 +1,330 @@
+Html
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Montador de Tabuleiro Shatranj</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Montador de Tabuleiro Shatranj</h1>
+
+    <div id="board-container">
+        <div id="board">
+            </div>
+    </div>
+
+    <div id="piece-selector">
+        <h2>Peças para Montagem</h2>
+        <div id="pieces-list">
+            </div>
+        <p>Arraste as peças selecionadas para o tabuleiro.</p>
+    </div>
+
+    <button id="reset-button">Limpar Tabuleiro</button>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+Style
+
+body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+#board-container {
+    margin-bottom: 30px;
+    border: 2px solid #333;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    overflow: hidden; /* Para conter o tabuleiro se ele for maior que a tela */
+}
+
+#board {
+    display: grid;
+    /* O tamanho do grid será definido dinamicamente pelo JavaScript */
+    background-color: #e0e0e0; /* Cor de fundo base para o tabuleiro */
+}
+
+.square {
+    width: 60px;  /* Tamanho de cada casa */
+    height: 60px; /* Tamanho de cada casa */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 1px solid #ccc; /* Borda sutil */
+    background-color: #f0f0f0; /* Cor padrão das casas */
+}
+
+.square.light {
+    background-color: #f0f0f0; /* Casas claras */
+}
+
+.square.dark {
+    background-color: #a0a0a0; /* Casas escuras */
+}
+
+/* Estilo para as peças (imagens JPG) */
+.piece-img {
+    width: 80%; /* Ajusta o tamanho da imagem da peça dentro da casa */
+    height: 80%;
+    object-fit: contain; /* Mantém a proporção da imagem */
+    cursor: grab; /* Indica que pode ser arrastada */
+    user-select: none; /* Impede a seleção da imagem ao arrastar */
+    display: block; /* Remove espaço extra abaixo da imagem */
+}
+
+#piece-selector {
+    text-align: center;
+    margin-bottom: 20px;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#pieces-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.piece-option {
+    border: 1px dashed #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: grab;
+    background-color: #f9f9f9;
+    transition: background-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.piece-option:hover {
+    background-color: #e9e9e9;
+}
+
+.piece-option img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    user-select: none;
+}
+
+#reset-button {
+    padding: 10px 20px;
+    background-color: #ff6666;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s ease;
+}
+
+#reset-button:hover {
+    background-color: #e65c5c;
+}
+
+
+Script 
+
+
+             const boardElement = document.getElementById('board');
+const piecesListElement = document.getElementById('pieces-list');
+const resetButton = document.getElementById('reset-button');
+
+const boardSize = 8; // Tamanho do tabuleiro (8x8 para Shatranj clássico)
+let draggedPiece = null; // Armazena a referência à peça que está sendo arrastada
+
+// --- Configuração das Peças ---
+const pieceConfig = {
+    // Certifique-se de que estes nomes correspondem exatamente aos seus arquivos PNG na pasta "pieces"
+    'king_w': { color: 'white', src: 'pieces/white_king.png' },
+    'rook_w': { color: 'white', src: 'pieces/white_rook.png' },
+    'knight_w': { color: 'white', src: 'pieces/white_knight.png' },
+    'bishop_w': { color: 'white', src: 'pieces/white_bishop.png' },
+    'queen_w': { color: 'white', src: 'pieces/white_queen.png' },
+    'pawn_w': { color: 'white', src: 'pieces/white_pawn.png' },
+
+    'king_b': { color: 'black', src: 'pieces/black_king.png' },
+    'rook_b': { color: 'black', src: 'pieces/black_rook.png' },
+    'knight_b': { color: 'black', src: 'pieces/black_knight.png' },
+    'bishop_b': { color: 'black', src: 'pieces/black_bishop.png' },
+    'queen_b': { color: 'black', src: 'pieces/black_queen.png' },
+    'pawn_b': { color: 'black', src: 'pieces/black_pawn.png' }
+};
+
+// --- Criação do Tabuleiro ---
+function createBoard() {
+    boardElement.innerHTML = ''; // Limpa tabuleiro existente
+    boardElement.style.gridTemplateColumns = `repeat(${boardSize}, 60px)`;
+    boardElement.style.gridTemplateRows = `repeat(${boardSize}, 60px)`;
+
+    for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
+            const square = document.createElement('div');
+            square.classList.add('square');
+            if ((row + col) % 2 === 0) {
+                square.classList.add('light');
+            } else {
+                square.classList.add('dark');
+            }
+            square.dataset.row = row;
+            square.dataset.col = col;
+
+            square.addEventListener('dragover', handleDragOver);
+            square.addEventListener('dragleave', handleDragLeave);
+            square.addEventListener('drop', handleDrop);
+            
+            boardElement.appendChild(square);
+        }
+    }
+}
+
+// --- Criação do Seletor de Peças ---
+function createPieceSelector() {
+    piecesListElement.innerHTML = '';
+    for (const pieceKey in pieceConfig) {
+        const pieceData = pieceConfig[pieceKey];
+        const pieceOption = document.createElement('div');
+        pieceOption.classList.add('piece-option');
+        pieceOption.dataset.pieceType = pieceKey;
+        
+        const pieceImg = document.createElement('img');
+        pieceImg.src = pieceData.src;
+        pieceImg.alt = pieceKey.replace('_', ' ');
+        pieceImg.draggable = true; // A imagem em si será arrastável
+        pieceImg.classList.add('piece-img'); // Adiciona a classe para estilo
+
+        pieceOption.appendChild(pieceImg);
+        piecesListElement.appendChild(pieceOption);
+
+        pieceImg.addEventListener('dragstart', handlePieceOptionDragStart);
+    }
+}
+
+// --- Funções de Drag and Drop ---
+
+// Inicia o arrasto de uma peça do seletor
+function handlePieceOptionDragStart(e) {
+    // Impede o arrasto do elemento pai (div.piece-option)
+    e.stopPropagation();
+
+    // Define a peça arrastada como o próprio elemento img
+    draggedPiece = e.target;
+    draggedPiece.isFromSelector = true; // Flag para indicar que veio do seletor
+
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('text/plain', null);
+
+    setTimeout(() => {
+        draggedPiece.style.opacity = '0.5';
+    }, 0);
+}
+
+// Inicia o arrasto de uma peça já no tabuleiro
+function handleBoardPieceDragStart(e) {
+    e.stopPropagation();
+    
+    draggedPiece = e.target;
+    draggedPiece.isFromSelector = false;
+    draggedPiece.originalSquare = e.target.parentElement;
+
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', null);
+
+    setTimeout(() => {
+        draggedPiece.style.opacity = '0.5';
+    }, 0);
+}
+
+// Gerencia o evento quando o mouse está sobre uma área de soltar válida
+function handleDragOver(e) {
+    e.preventDefault();
+    if (e.target.classList.contains('square')) {
+        e.target.classList.add('drag-over');
+    }
+}
+
+// Gerencia o evento quando o mouse sai de uma área de soltar válida
+function handleDragLeave(e) {
+    if (e.target.classList.contains('square')) {
+        e.target.classList.remove('drag-over');
+    }
+}
+
+// Gerencia o evento quando uma peça é SOLTA
+function handleDrop(e) {
+    e.preventDefault();
+    const targetSquare = e.target.closest('.square');
+    if (!targetSquare || !draggedPiece) {
+        return;
+    }
+    targetSquare.classList.remove('drag-over');
+
+    // Lógica para ADICIONAR PEÇA do seletor ao tabuleiro
+    if (draggedPiece.isFromSelector) {
+        if (targetSquare.children.length === 0) {
+            const newPieceImg = document.createElement('img');
+            newPieceImg.src = draggedPiece.src;
+            newPieceImg.classList.add('piece-img');
+            newPieceImg.dataset.pieceType = draggedPiece.dataset.pieceType;
+            newPieceImg.draggable = true;
+            newPieceImg.addEventListener('dragstart', handleBoardPieceDragStart);
+            targetSquare.appendChild(newPieceImg);
+        } else {
+            console.log("Casa ocupada! Peça não adicionada.");
+        }
+    }
+    // Lógica para MOVER PEÇA já existente no tabuleiro
+    else {
+        const originalSquare = draggedPiece.originalSquare;
+        if (targetSquare.children.length === 0 && targetSquare !== originalSquare) {
+            targetSquare.appendChild(draggedPiece);
+        } else {
+            console.log("Casa de destino ocupada ou inválida. Peça retorna à origem.");
+        }
+    }
+    
+    // Reseta a opacidade da peça que foi arrastada
+    if(draggedPiece) {
+      draggedPiece.style.opacity = '1';
+    }
+
+    // Limpa o estado de arrasto
+    draggedPiece = null;
+}
+
+// --- Botão de Reset ---
+function resetBoard() {
+    createBoard();
+    createPieceSelector();
+}
+
+// --- Inicialização ---
+createBoard();
+createPieceSelector();
+resetButton.addEventListener('click', resetBoard);
