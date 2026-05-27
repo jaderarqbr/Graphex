@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ektheon Cadmon: Console de Regras Avançado</title>
+    <!-- Carrega o Tailwind CSS para estilização rápida e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos personalizados para o tema de RPG */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Cor de fundo escura (Dark Theme) */
+            color: #e2e8f0; /* Texto claro */
+        }
+        .rpg-card {
+            background-color: #2d3748; /* Cor de card mais escura */
+            border: 1px solid #4a5568;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+        }
+        .log-area {
+            height: 300px;
+            overflow-y: scroll;
+            background-color: #171923;
+            border-top: 2px solid #333;
+            padding: 1rem;
+            white-space: pre-wrap;
+            scrollbar-color: #4a5568 #171923;
+            scrollbar-width: thin;
+        }
+        .stat-label {
+            color: #a0aec0;
+            font-size: 0.75rem;
+        }
+        .stat-value {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        .roll-btn {
+            transition: all 0.1s;
+        }
+        .roll-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(66, 153, 225, 0.5);
+        }
+        /* Barras de Vida e Mana */
+        .bar-container {
+            border: 1px solid #4a5568;
+            border-radius: 9999px;
+        }
+        .bar-hp {
+            background-color: #f56565; /* Vermelho vida */
+            border-radius: 9999px;
+        }
+        .bar-mana {
+            background-color: #63b3ed; /* Azul mana */
+            border-radius: 9999px;
+        }
+        .custom-select {
+            background-color: #171923;
+            color: #e2e8f0;
+            border: 1px solid #4a5568;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+        }
+        #hero-name-input {
+            width: 100%; /* Garante que o input ocupe a largura total em mobile */
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        #hero-name-input:not([readonly]) {
+            border: 1px solid #63b3ed;
+            background-color: #171923;
+            border-radius: 0.375rem;
+        }
+        .shop-item-card {
+            background-color: #171923;
+            border: 1px solid #4a5568;
+            transition: transform 0.1s;
+        }
+        .shop-item-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 10px rgba(237, 203, 76, 0.4);
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl sm:text-4xl font-bold text-blue-400 mb-6 text-center">
+            Njorn: Ektheon Cadmon - Console de Regras
+        </h1>
+        <p class="text-sm text-gray-400 mb-6 text-center">
+            Simulador Offline e Gerenciamento de Fichas (Compatível Android/Desktop).
+        </p>
+
+        <!-- Seção Principal de Ficha de Personagem -->
+        <div id="character-sheet" class="rpg-card p-4 sm:p-6 mb-8 rounded-lg">
+            
+            <!-- Nome do Herói Editável -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b pb-2 border-gray-600">
+                <input type="text" id="hero-name-input" value="Ektheon Cadmon (Ladrão-Elfo)" 
+                       class="text-2xl font-semibold bg-transparent border-none focus:ring-0 focus:outline-none w-full sm:w-auto" readonly>
+                <button onclick="toggleHeroNameEdit()" id="edit-name-btn" class="mt-2 sm:mt-0 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition">
+                    Editar Nome
+                </button>
+            </div>
+
+
+            <!-- Stats Rápidos e Recursos -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+                <div class="flex flex-col items-start p-2 rounded-md bg-gray-700">
+                    <span class="stat-label">Nível</span>
+                    <span id="stat-level" class="stat-value">1</span>
+                </div>
+                <!-- CA Ajustável -->
+                <div class="flex flex-col items-start p-2 rounded-md bg-gray-700">
+                    <span class="stat-label">CA (Armadura)</span>
+                    <div class="flex items-center w-full mt-1">
+                        <button onclick="changeEktheonStat('ca', -1)" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-l text-sm">-</button>
+                        <span id="stat-ca" class="stat-value text-center flex-grow bg-gray-600 py-1 text-sm">20</span>
+                        <button onclick="changeEktheonStat('ca', 1)" class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-r text-sm">+</button>
+                    </div>
+                </div>
+                <!-- Moeda -->
+                <div class="flex flex-col items-start p-2 rounded-md bg-yellow-700/50 border border-yellow-500">
+                    <span class="stat-label text-yellow-300">Moeda de Ouro</span>
+                    <span id="stat-money" class="stat-value text-yellow-200">50</span>
+                </div>
+                <div class="flex flex-col items-start p-2 rounded-md bg-gray-700">
+                    <span class="stat-label">XP</span>
+                    <span id="stat-xp" class="stat-value">0 / 100</span>
+                </div>
+                <div class="flex flex-col items-start p-2 rounded-md bg-gray-700">
+                    <span class="stat-label">Intimidação</span>
+                    <span id="stat-intimidation" class="stat-value">0</span>
+                </div>
+                <div class="flex flex-col items-start p-2 rounded-md bg-gray-700">
+                    <span class="stat-label">Crimes/Briga</span>
+                    <span id="stat-crimes" class="stat-value block">0 / 0</span>
+                </div>
+            </div>
+
+            <!-- HP e Mana Bars -->
+            <div class="mb-4">
+                <div class="stat-label mb-1">HP (<span id="hp-current">30</span>/<span id="hp-max">30</span>)</div>
+                <div class="bar-container h-3 w-full">
+                    <div id="hp-bar" class="bar-hp h-full" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="mb-6">
+                <div class="stat-label mb-1">Mana (<span id="mana-current">10.0</span>/<span id="mana-max">10.0</span>)</div>
+                <div class="bar-container h-3 w-full">
+                    <div id="mana-bar" class="bar-mana h-full" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Arma Selecionada -->
+            <div class="grid grid-cols-1 gap-4 text-center">
+                <div class="p-3 rpg-card rounded">
+                    <span class="stat-label">Arma Selecionada (Apenas Armas Compradas!)</span>
+                    <select id="weapon-select" onchange="updateSelectedWeapon()" class="custom-select w-full mt-1">
+                        <!-- Opções preenchidas por JS (Apenas inventário) -->
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Ações e Combate -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            
+            <!-- Painel de Ações e Rolagens de Dados -->
+            <div class="lg:col-span-2 rpg-card p-4 sm:p-6 rounded-lg">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2 border-gray-600">Ações de Jogo</h2>
+                
+                <!-- Configuração de Combate -->
+                <div class="mb-6 p-4 rounded-md bg-gray-700">
+                    <h3 class="font-bold text-red-400 mb-2">Configuração de Combate</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="stat-label block mb-1">CA (Defesa) do Alvo</label>
+                            <input type="number" id="target-ca-input" value="20" min="1" 
+                                   onchange="updateTargetCA(this.value)" 
+                                   class="custom-select w-full text-center">
+                        </div>
+                        <div>
+                            <label class="stat-label block mb-1">Inimigo (Briga - Restrito ao Nível)</label>
+                            <select id="enemy-select" class="custom-select w-full">
+                                <!-- Opções preenchidas por JS (Filtrado por Nível) -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ferramenta de Desafio de Crime/Briga -->
+                <div class="mb-6 p-4 rounded-md bg-gray-700">
+                    <h3 class="font-bold text-yellow-400 mb-2">Desafio de Crime / Briga</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="stat-label block mb-1">Crime Selecionado (CD - Restrito ao Nível)</label>
+                            <select id="crime-select" class="custom-select w-full">
+                                <!-- Opções preenchidas por JS (Filtrado por Nível) -->
+                            </select>
+                        </div>
+                         <!-- Ally Participation Checkboxes -->
+                        <div class="md:col-span-2">
+                            <label class="font-bold text-yellow-300 block mb-1">Aliados Participantes (Bônus = +Aliados)</label>
+                            <div id="ally-participation-checkboxes" class="flex flex-wrap gap-x-4 gap-y-2 p-2 rounded bg-gray-600 max-h-24 overflow-y-auto">
+                                <!-- Checkboxes will be inserted here by JS -->
+                            </div>
+                        </div>
+                    </div>
+                    <button id="action-crime-challenge" class="roll-btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-2 rounded-lg w-full">
+                        REALIZAR DESAFIO (Crime/Briga)
+                    </button>
+                </div>
+
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <button id="action-attack" class="roll-btn bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-2 rounded-lg">
+                        Ataque (Arma Atual)
+                    </button>
+                    <button id="action-intimidate" class="roll-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-2 rounded-lg">
+                        Jogada Intimidar
+                    </button>
+                    <button id="action-use-ring" class="roll-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-2 rounded-lg">
+                        Usar Anel (0.5 Mana)
+                    </button>
+                    <button id="action-d20" class="roll-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-2 rounded-lg">
+                        Rolar d20 (Iniciativa/Teste)
+                    </button>
+                </div>
+
+                <div class="mt-6 border-t pt-4 border-gray-600">
+                    <h3 class="text-lg font-semibold mb-2">Gerenciamento Manual de Recursos (Ektheon)</h3>
+                    <div class="flex space-x-2 flex-wrap">
+                        <button onclick="updateResource('hp', -5)" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg text-sm my-1">-5 HP</button>
+                        <button onclick="updateResource('hp', 5)" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg text-sm my-1">+5 HP</button>
+                        <button onclick="updateResource('mana', -1)" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg text-sm my-1">-1 Mana</button>
+                        <button onclick="updateResource('mana', 1)" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg text-sm my-1">+1 Mana</button>
+                        <button onclick="updateResource('xp', 20)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm my-1">+20 XP</button>
+                        <button onclick="updateResource('money', 50)" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg text-sm my-1">+50 Moedas</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Ficha do Grupo/Aliados -->
+            <div class="lg:col-span-1 rpg-card p-4 sm:p-6 rounded-lg">
+                <div class="flex justify-between items-center mb-4 border-b pb-2 border-gray-600">
+                    <h2 class="text-xl font-semibold">Companheiros (Aliados)</h2>
+                    <button onclick="togglePartyEditMode()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded-lg text-sm">
+                        Gerenciar Aliados
+                    </button>
+                </div>
+
+                <!-- Party Management UI (Initially Hidden) -->
+                <div id="party-edit-ui" class="hidden mb-4 p-4 rounded-lg bg-gray-700">
+                    <h3 class="font-bold text-indigo-400 mb-3">Gerenciar Lista</h3>
+                    
+                    <!-- Input/Buttons for Adding New Ally -->
+                    <div class="space-y-2 mb-4">
+                        <input type="text" id="new-ally-name" placeholder="Nome do Novo Aliado" class="custom-select w-full">
+                        <input type="text" id="new-ally-attacks" placeholder="Ataques (Ex: Ataque (6 dmg), Bola de Fogo (10 dmg))" class="custom-select w-full">
+                        <select id="new-ally-color" class="custom-select w-full">
+                            <option value="purple">Roxo (Feiticeiro)</option>
+                            <option value="gray">Cinza (Golem)</option>
+                            <option value="stone">Pedra (Esqueleto)</option>
+                            <option value="cyan">Ciano (Bárbaro)</option>
+                        </select>
+                        <button onclick="addNewAlly()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg w-full">Adicionar Aliado</button>
+                    </div>
+
+                    <!-- Current Ally List for Editing/Removing -->
+                    <div id="current-ally-management" class="space-y-3 max-h-40 overflow-y-auto">
+                        <!-- Ally cards for editing/removing will be rendered here by renderAllyManagement() -->
+                    </div>
+                </div>
+
+                <div id="party-list" class="space-y-4">
+                    <!-- Cards dos Aliados serão inseridos aqui pelo JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Log de Ações e Diário de Bordo -->
+        <div class="rpg-card p-0 rounded-lg mb-8">
+            <div class="p-4 border-b border-gray-600 flex justify-between items-center">
+                <h2 class="text-xl font-semibold">Log de Ações / Diário de Bordo</h2>
+                <div class="space-x-2">
+                    <button onclick="saveGame()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-3 rounded-lg text-sm">Salvar Jogo</button>
+                    <button onclick="loadGame()" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded-lg text-sm">Carregar Jogo</button>
+                    <button onclick="clearLog()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-lg text-sm">Limpar Log</button>
+                </div>
+            </div>
+            <pre id="log-output" class="log-area text-sm text-gray-300">--- Início do Diário de Bordo ---
+O console foi iniciado. Carregando a ficha de Ektheon Cadmon...
+</pre>
+        </div>
+
+        <!-- Seção de Shopping (Loja) -->
+        <div id="shopping-section" class="rpg-card p-4 sm:p-6 rounded-lg">
+            <h2 class="text-2xl font-bold text-yellow-500 mb-4 border-b pb-2 border-gray-600">
+                O Grande Mercado (Shopping)
+                <span class="text-lg text-yellow-300 ml-4">(Seu Ouro: <span id="shop-money-stat">50</span>)</span>
+            </h2>
+            
+            <div id="shop-items-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Itens serão renderizados aqui pelo JS -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Variável global para armazenar o estado do jogo
+        var gameState = {};
+
+        // ==========================================================
+        // DADOS E REGRAS FIXAS (Armas, Crimes e Inimigos)
+        // ==========================================================
+
+        var WEAPONS = [
+            // Weapon 0: Default starting weapon
+            { name: "Adaga Mágica (Padrão)", damage: 10 }, 
+            // Purchaseable weapons
+            { name: "Espada Longa", damage: 12 },
+            { name: "Montante", damage: 16 },
+            { name: "Mangual", damage: 14 },
+            { name: "Espada Curta", damage: 10 },
+            { name: "Maça Estrela", damage: 7 },
+            { name: "Cajado", damage: 6 },
+            { name: "Espada", damage: 5 },
+            { name: "Soco", damage: 3 },
+            { name: "Machado de Batalha", damage: "1d10" },
+            { name: "Arco Longo", damage: 8 },
+            { name: "Besta Leve", damage: 9 },
+            { name: "Martelo de Guerra", damage: "1d8" },
+            { name: "Lança", damage: 6 },
+            { name: "Florete", damage: "1d8" },
+            { name: "Chicote", damage: 4 },
+            { name: "Katana", damage: "1d10 + 2" },
+            { name: "Foice (Comum)", damage: "1d6" },
+            { name: "Punhal de Ladrão", damage: "1d4 + 1" },
+            { name: "Alabarda", damage: "1d12" },
+        ];
+
+        var CRIMES = [
+            // Adicionado requiredLevel para restrição de acesso
+            { name: "Pequeno Furto (CD 12)", difficulty: 12, xpReward: 5, crimeIncrease: 1, requiredLevel: 1 },
+            { name: "Ato de Vandalismo (CD 10)", difficulty: 10, xpReward: 3, crimeIncrease: 1, requiredLevel: 1 },
+            { name: "Assalto Simples (CD 14)", difficulty: 14, xpReward: 8, crimeIncrease: 2, requiredLevel: 2 },
+            { name: "Suborno (CD 16)", difficulty: 16, xpReward: 15, crimeIncrease: 2, requiredLevel: 3 },
+            { name: "Arrombamento (CD 15)", difficulty: 15, xpReward: 10, crimeIncrease: 2, requiredLevel: 3 },
+            { name: "Roubo de Caravana (CD 18)", difficulty: 18, xpReward: 20, crimeIncrease: 3, requiredLevel: 4 },
+            { name: "Falsificação (CD 20)", difficulty: 20, xpReward: 30, crimeIncrease: 4, requiredLevel: 5 },
+            { name: "Invasão de Templo (CD 22)", difficulty: 22, xpReward: 40, crimeIncrease: 4, requiredLevel: 6 },
+            { name: "Seqüestro (CD 25)", difficulty: 25, xpReward: 50, crimeIncrease: 5, requiredLevel: 8 },
+            { name: "Homicídio Bárbaro (CD 30)", difficulty: 30, xpReward: 75, crimeIncrease: 5, requiredLevel: 10 }
+        ];
+
+        var ENEMIES = [
+             // Adicionado requiredLevel para restrição de acesso
+            { name: "Guerreiro Goblin", def: 12, atk: 5, life: 10, requiredLevel: 1 },
+            { name: "Lobo Faminto", def: 13, atk: 6, life: 12, requiredLevel: 1 },
+            { name: "Zumbi", def: 10, atk: 4, life: 15, requiredLevel: 1 },
+            { name: "Guarda da Cidade", def: 15, atk: 8, life: 20, requiredLevel: 2 },
+            { name: "Bandido de Estrada", def: 14, atk: 7, life: 18, requiredLevel: 3 },
+            { name: "Aranha Gigante", def: 13, atk: 7, life: 16, requiredLevel: 3 },
+            { name: "Mago Recluso", def: 10, atk: 10, life: 25, requiredLevel: 4 },
+            { name: "Assassino de Aluguel", def: 16, atk: 10, life: 30, requiredLevel: 5 },
+            { name: "Elemental de Terra", def: 15, atk: 9, life: 35, requiredLevel: 6 },
+            { name: "Dragão Jovem (Chefe)", def: 22, atk: 20, life: 120, requiredLevel: 10 }
+        ];
+        
+        var SHOP_ITEMS = [
+            // Armas (Adicionadas ao inventário para liberar no dropdown)
+            { id: 'weapon_longsword', name: "Espada Longa", type: "weapon", cost: 100, itemData: WEAPONS.find(w => w.name === "Espada Longa"), description: "Dano: 12" },
+            { id: 'weapon_montante', name: "Montante", type: "weapon", cost: 250, itemData: WEAPONS.find(w => w.name === "Montante"), description: "Dano: 16" },
+            { id: 'weapon_florete', name: "Florete", type: "weapon", cost: 180, itemData: WEAPONS.find(w => w.name === "Florete"), description: "Dano: 1d8" },
+            { id: 'weapon_katana', name: "Katana", type: "weapon", cost: 400, itemData: WEAPONS.find(w => w.name === "Katana"), description: "Dano: 1d10 + 2" },
+            
+            // Poções (Consumíveis)
+            { id: 'potion_hp_minor', name: "Poção de Cura Menor", type: "consumable", cost: 50, effect: { type: 'hp', amount: 15 }, description: "+15 HP instantâneo" },
+            { id: 'potion_mana_minor', name: "Poção de Mana Menor", type: "consumable", cost: 75, effect: { type: 'mana', amount: 5.0 }, description: "+5 Mana instantâneo" },
+
+            // Itens Mágicos Especiais
+            { id: 'scroll_damage', name: "Pergaminho: Dano Extra", type: "special", cost: 150, description: "Usável uma vez por combate para causar 15 de dano adicional. (1 uso)" },
+            { id: 'portal_magic', name: "Portal Mágico", type: "special", cost: 500, description: "Teleporte de Emergência. Usável em falhas críticas. (1 uso)" },
+        ];
+
+
+        // Tabela de progressão de Nível / XP (exemplo simples)
+        var LEVEL_UP_TABLE = [
+            { level: 1, xpNeeded: 100, hpIncrease: 5, manaIncrease: 1.0 },
+            { level: 2, xpNeeded: 300, hpIncrease: 7, manaIncrease: 1.5 },
+            { level: 3, xpNeeded: 600, hpIncrease: 10, manaIncrease: 2.0 },
+            { level: 4, xpNeeded: 1000, hpIncrease: 12, manaIncrease: 2.5 },
+            { level: 5, xpNeeded: 1500, hpIncrease: 15, manaIncrease: 3.0 },
+            { level: 6, xpNeeded: 2200, hpIncrease: 18, manaIncrease: 3.5 }
+            // Adicionar mais níveis se necessário
+        ];
+
+        var INITIAL_STATE = {
+            heroName: "Ektheon Cadmon (Ladrão-Elfo)",
+            targetCA: 20, 
+            ektheon: {
+                level: 1,
+                xp: 0,
+                xpNextLevel: LEVEL_UP_TABLE[0].xpNeeded,
+                hp: { current: 30, max: 30 },
+                mana: { current: 10.0, max: 10.0 },
+                ca: 20, // CA ajustável do herói
+                intimidation: 0, 
+                briga: 0,
+                crimes: 0,
+                money: 50, // Moeda inicial
+                // Inventário: apenas a Adaga Mágica inicial é garantida.
+                inventory: [{ name: "Adaga Mágica (Padrão)", damage: 10, type: 'weapon', uses: -1 }], 
+                weapon: WEAPONS[0] 
+            },
+            party: [
+                {
+                    name: "Astra, a Feiticeira",
+                    level: 4,
+                    hpCurrent: 59, hpMax: 60,
+                    attacks: ["Bola de Fogo (6 dmg)", "Raio Elétrico (5 dmg)", "Flecha (4 dmg)"],
+                    color: "purple"
+                },
+                {
+                    name: "Golem de Pedra",
+                    level: 1,
+                    hpCurrent: 50, hpMax: 50,
+                    attacks: ["Ataque Físico (8 dmg)"],
+                    color: "gray"
+                }
+            ],
+            log: [
+                "--- Início do Diário de Bordo ---",
+                "O console foi iniciado. Carregando a ficha de Ektheon Cadmon..."
+            ]
+        };
+
+        // ==========================================================
+        // FUNÇÕES UTILITÁRIAS
+        // ==========================================================
+
+        /**
+         * Rola um dado com N faces.
+         */
+        function rollDie(sides) {
+            var result = Math.floor(Math.random() * sides) + 1;
+            var logEntry = "[D" + sides + "] Rolagem de dado " + sides + ": " + result;
+            appendToLog(logEntry);
+            return result;
+        }
+
+        /**
+         * Adiciona uma mensagem ao Log de Ações e salva o estado.
+         */
+        function appendToLog(message) {
+            var timestamp = new Date().toLocaleTimeString('pt-BR');
+            gameState.log.push("[" + timestamp + "] " + message);
+            
+            var logOutput = document.getElementById('log-output');
+            if (gameState.log.length > 50) {
+                gameState.log = gameState.log.slice(gameState.log.length - 50);
+            }
+            logOutput.textContent = gameState.log.join('\n');
+            logOutput.scrollTop = logOutput.scrollHeight; 
+            saveGame(); 
+        }
+
+        function clearLog() {
+            var confirmation = window.prompt("Digite 'SIM' para confirmar a limpeza do Log de Ações:");
+            if (confirmation === 'SIM') {
+                gameState.log = ["--- Log Limpo ---"];
+                document.getElementById('log-output').textContent = gameState.log.join('\n');
+                saveGame();
+            } else {
+                appendToLog("Limpeza do log cancelada.");
+            }
+        }
+
+        // ==========================================================
+        // GERENCIAMENTO DE ESTADO (SAVE/LOAD OFFLINE)
+        // ==========================================================
+
+        function saveGame() {
+            try {
+                localStorage.setItem('ektheonCadmonGameState', JSON.stringify(gameState));
+                console.log("Jogo Salvo com Sucesso!");
+            } catch (error) {
+                console.error("Erro ao salvar o jogo:", error);
+                appendToLog("ERRO: Falha ao salvar o estado do jogo localmente.");
+            }
+        }
+
+        function loadGame() {
+            try {
+                var savedState = localStorage.getItem('ektheonCadmonGameState');
+                if (savedState) {
+                    var parsedState = JSON.parse(savedState);
+                    
+                    // Garante que o estado carregado tenha a estrutura mais recente (merge)
+                    gameState = Object.assign({}, INITIAL_STATE, parsedState);
+                    
+                    // Garante que objetos aninhados sejam atualizados
+                    gameState.ektheon = Object.assign({}, INITIAL_STATE.ektheon, parsedState.ektheon);
+                    gameState.ektheon.hp = Object.assign({}, INITIAL_STATE.ektheon.hp, parsedState.ektheon.hp);
+                    gameState.ektheon.mana = Object.assign({}, INITIAL_STATE.ektheon.mana, parsedState.ektheon.mana);
+                    gameState.ektheon.inventory = parsedState.ektheon.inventory || INITIAL_STATE.ektheon.inventory;
+                    gameState.party = parsedState.party || INITIAL_STATE.party; 
+                    
+                    // Manter a arma selecionada se possível
+                    var selectedWeapon = WEAPONS.find(function(w) { return w.name === parsedState.ektheon.weapon.name; });
+                    gameState.ektheon.weapon = selectedWeapon || WEAPONS[0];
+
+                    appendToLog("Jogo Carregado com Sucesso!");
+                } else {
+                    // Se não houver save, inicia novo
+                    gameState = JSON.parse(JSON.stringify(INITIAL_STATE)); // Deep copy
+                    appendToLog("Nenhum jogo salvo encontrado. Iniciando nova campanha.");
+                }
+                updateUI();
+            } catch (error) {
+                console.error("Erro ao carregar o jogo:", error);
+                gameState = JSON.parse(JSON.stringify(INITIAL_STATE)); // Inicia novo em caso de erro
+                appendToLog("ERRO: Falha ao carregar o estado. Iniciando com dados padrão.");
+                updateUI();
+            }
+        }
+
+        // ==========================================================
+        // LÓGICA DE PROGRESSÃO
+        // ==========================================================
+
+        /**
+         * Verifica se Ektheon pode subir de nível.
+         */
+        function checkLevelUp() {
+            var ektheon = gameState.ektheon;
+            var currentLevelData = LEVEL_UP_TABLE.find(function(l) { return l.level === ektheon.level; });
+            
+            if (!currentLevelData) return; 
+
+            var nextLevelData = LEVEL_UP_TABLE.find(function(l) { return l.level === ektheon.level + 1; });
+
+            while (ektheon.xp >= ektheon.xpNextLevel && nextLevelData) {
+                ektheon.level++;
+                
+                ektheon.hp.max += nextLevelData.hpIncrease;
+                ektheon.mana.max += nextLevelData.manaIncrease;
+                
+                ektheon.hp.current = ektheon.hp.max;
+                ektheon.mana.current = ektheon.mana.max;
+
+                ektheon.xpNextLevel = nextLevelData.xpNeeded;
+
+                appendToLog("!!! PARABÉNS! Ektheon Cadmon subiu para o NÍVEL " + ektheon.level + "!");
+                appendToLog("HP Máximo Aumentado em +" + nextLevelData.hpIncrease + ". Mana Máxima em +" + nextLevelData.manaIncrease.toFixed(1) + ".");
+
+                nextLevelData = LEVEL_UP_TABLE.find(function(l) { return l.level === ektheon.level + 1; });
+            }
+        }
+
+        // ==========================================================
+        // ATUALIZAÇÃO DA INTERFACE DO USUÁRIO
+        // ==========================================================
+
+        function updateUI() {
+            var ektheon = gameState.ektheon;
+            
+            // Atualiza Nome do Herói e CA do Alvo
+            document.getElementById('hero-name-input').value = gameState.heroName;
+            document.getElementById('target-ca-input').value = gameState.targetCA;
+
+            // Stats Principais
+            document.getElementById('stat-level').textContent = ektheon.level;
+            document.getElementById('stat-xp').textContent = ektheon.xp + " / " + ektheon.xpNextLevel;
+            document.getElementById('stat-intimidation').textContent = ektheon.intimidation;
+            document.getElementById('stat-crimes').textContent = ektheon.crimes + " / " + ektheon.briga;
+            document.getElementById('stat-ca').textContent = ektheon.ca; 
+            document.getElementById('stat-money').textContent = ektheon.money; // Moeda
+            document.getElementById('shop-money-stat').textContent = ektheon.money; // Moeda na Loja
+
+            // HP/Mana Bars
+            var hpCurrent = Math.max(0, ektheon.hp.current);
+            var hpMax = ektheon.hp.max;
+            var hpPercent = (hpCurrent / hpMax) * 100;
+            document.getElementById('hp-current').textContent = hpCurrent.toFixed(0);
+            document.getElementById('hp-max').textContent = hpMax.toFixed(0);
+            document.getElementById('hp-bar').style.width = hpPercent + "%";
+            
+            var manaCurrent = Math.max(0, ektheon.mana.current);
+            var manaMax = ektheon.mana.max;
+            var manaPercent = (manaCurrent / manaMax) * 100;
+            document.getElementById('mana-current').textContent = manaCurrent.toFixed(1);
+            document.getElementById('mana-max').textContent = manaMax.toFixed(1);
+            document.getElementById('mana-bar').style.width = manaPercent + "%";
+
+            // Listas e Checagens
+            renderPartyList();
+            populateAllyCheckboxes();
+            renderAllyManagement(); 
+            populateComboBoxes(); // Chama novamente para filtrar crimes/inimigos por nível
+            renderShopItems(); // Renderiza a loja
+            
+            var logOutput = document.getElementById('log-output');
+            logOutput.textContent = gameState.log.join('\n');
+            logOutput.scrollTop = logOutput.scrollHeight;
+            
+            saveGame();
+        }
+
+        /**
+         * Renderiza a lista de companheiros com botões de ajuste de HP.
+         */
+        function renderPartyList() {
+            var partyList = document.getElementById('party-list');
+            partyList.innerHTML = '';
+
+            gameState.party.forEach(function(ally, index) {
+                var colorClass = 'border-' + ally.color + '-500';
+                var hpDisplay = ally.hpCurrent + "/" + ally.hpMax;
+                
+                if (ally.hpCurrent <= 0) hpDisplay = "0 (Inativo)";
+
+                var card = `
+                    <div class="rpg-card p-3 rounded-md bg-gray-800 bg-opacity-50 border-l-4 ${colorClass}">
+                        <p class="font-bold text-lg">${ally.name}</p>
+                        <p class="text-sm text-gray-300">Nível: ${ally.level || 1} | HP: <span id="ally-hp-${index}">${hpDisplay}</span></p>
+                        <p class="text-xs mt-1">Ataques: ${ally.attacks.join(', ')}</p>
+                        <div class="flex space-x-2 mt-2">
+                            <button onclick="updateAllyHP(${index}, 1)" class="bg-green-700 hover:bg-green-800 text-white px-2 py-1 rounded text-xs">+1 HP</button>
+                            <button onclick="updateAllyHP(${index}, -1)" class="bg-red-700 hover:bg-red-800 text-white px-2 py-1 rounded text-xs">-1 HP</button>
+                            <button onclick="updateAllyHP(${index}, ally.hpMax - ally.hpCurrent)" class="bg-blue-700 hover:bg-blue-800 text-white px-2 py-1 rounded text-xs">Cura Total</button>
+                        </div>
+                    </div>
+                `;
+                partyList.insertAdjacentHTML('beforeend', card);
+            });
+        }
+        
+        /**
+         * Renderiza os checkboxes para participação dos aliados em crimes/brigas.
+         */
+        function populateAllyCheckboxes() {
+            var container = document.getElementById('ally-participation-checkboxes');
+            container.innerHTML = '';
+
+            if (gameState.party.length === 0) {
+                 container.innerHTML = '<span class="text-sm text-gray-400">Nenhum aliado para participar.</span>';
+                 return;
+            }
+
+            gameState.party.forEach(function(ally, index) {
+                var isInactive = ally.hpCurrent <= 0;
+                var checkbox = `
+                    <div class="flex items-center">
+                        <input type="checkbox" id="ally-check-${index}" data-ally-name="${ally.name}" ${isInactive ? 'disabled' : ''} class="mr-1 h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="ally-check-${index}" class="text-sm ${isInactive ? 'text-red-400 line-through' : 'text-white'}">
+                            ${ally.name}
+                        </label>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', checkbox);
+            });
+        }
+
+        /**
+         * Preenche os comboboxes de Arma (filtrado por inventário), Crime (filtrado por nível) e Inimigo (filtrado por nível).
+         */
+        function populateComboBoxes() {
+            var ektheon = gameState.ektheon;
+            
+            // 1. Armas (Filtra apenas as armas no inventário)
+            var weaponSelect = document.getElementById('weapon-select');
+            weaponSelect.innerHTML = '';
+            
+            var availableWeapons = WEAPONS.filter(function(w) {
+                return ektheon.inventory.some(function(i) {
+                    return i.type === 'weapon' && i.name === w.name;
+                });
+            });
+
+            availableWeapons.forEach(function(weapon) {
+                var option = new Option(weapon.name + " (Dano: " + weapon.damage + ")", weapon.name);
+                weaponSelect.add(option);
+            });
+            
+            // Define a arma equipada atual (garante que a arma equipada está no inventário)
+            if (ektheon.weapon && ektheon.inventory.some(i => i.name === ektheon.weapon.name)) {
+                 weaponSelect.value = ektheon.weapon.name;
+            } else if (availableWeapons.length > 0) {
+                ektheon.weapon = availableWeapons[0];
+                 weaponSelect.value = availableWeapons[0].name;
+            } else {
+                 // Nenhuma arma, deve ser impossível se a Adaga Padrão estiver no INITIAL_STATE
+                 appendToLog("AVISO: Nenhuma arma disponível no inventário!");
+            }
+
+            // 2. Crimes (Filtra por nível mínimo)
+            var crimeSelect = document.getElementById('crime-select');
+            crimeSelect.innerHTML = '';
+            var filteredCrimes = CRIMES.filter(function(c) {
+                return c.requiredLevel <= ektheon.level;
+            });
+
+            filteredCrimes.forEach(function(crime) {
+                var option = new Option(crime.name + " (Nível Mínimo: " + crime.requiredLevel + ")", crime.name);
+                crimeSelect.add(option);
+            });
+            if (filteredCrimes.length === 0) {
+                crimeSelect.add(new Option("Nenhum Crime Disponível (Nível Baixo)", "none"));
+            }
+
+            // 3. Inimigos (Filtra por nível mínimo)
+            var enemySelect = document.getElementById('enemy-select');
+            enemySelect.innerHTML = '';
+            var filteredEnemies = ENEMIES.filter(function(e) {
+                return e.requiredLevel <= ektheon.level;
+            });
+            
+            filteredEnemies.forEach(function(enemy) {
+                var option = new Option(enemy.name + " (Nível Mínimo: " + enemy.requiredLevel + ")", enemy.name);
+                enemySelect.add(option);
+            });
+            if (filteredEnemies.length === 0) {
+                enemySelect.add(new Option("Nenhum Inimigo Disponível (Nível Baixo)", "none"));
+            }
+        }
+
+        // ==========================================================
+        // FUNÇÕES DE EDIÇÃO DE ESTADO
+        // ==========================================================
+
+        /**
+         * Alterna o modo de edição do nome do herói.
+         */
+        function toggleHeroNameEdit() {
+            var input = document.getElementById('hero-name-input');
+            var button = document.getElementById('edit-name-btn');
+
+            if (input.readOnly) {
+                input.readOnly = false;
+                button.textContent = 'Salvar Nome';
+                input.focus();
+                appendToLog("[FICHA] Iniciada edição do nome do Herói.");
+            } else {
+                input.readOnly = true;
+                button.textContent = 'Editar Nome';
+                gameState.heroName = input.value;
+                appendToLog("[FICHA] Nome do Herói alterado para: " + gameState.heroName);
+                saveGame();
+            }
+        }
+
+        /**
+         * Atualiza o CA do alvo a partir do input.
+         */
+        function updateTargetCA(value) {
+            var newCA = parseInt(value);
+            if (!isNaN(newCA) && newCA >= 1) {
+                gameState.targetCA = newCA;
+                appendToLog("[COMBATE] CA do Alvo definida para: " + newCA);
+                saveGame();
+            }
+        }
+        
+        /**
+         * Alterna a exibição da UI de gerenciamento de aliados.
+         */
+        function togglePartyEditMode() {
+            var ui = document.getElementById('party-edit-ui');
+            ui.classList.toggle('hidden');
+            if (!ui.classList.contains('hidden')) {
+                renderAllyManagement();
+            }
+        }
+
+        /**
+         * Adiciona um novo aliado à lista.
+         */
+        function addNewAlly() {
+            var nameInput = document.getElementById('new-ally-name');
+            var attacksInput = document.getElementById('new-ally-attacks');
+            var colorSelect = document.getElementById('new-ally-color');
+            
+            var name = nameInput.value.trim();
+            var attacks = attacksInput.value.split(',').map(function(a) { return a.trim(); }).filter(function(a) { return a.length > 0; });
+            var color = colorSelect.value;
+            
+            if (name === "") {
+                appendToLog("ERRO: O nome do novo aliado não pode estar vazio.");
+                return;
+            }
+
+            var newAlly = {
+                name: name,
+                level: 1, 
+                hpCurrent: 10, hpMax: 10, 
+                attacks: attacks.length > 0 ? attacks : ["Ataque Padrão (5 dmg)"],
+                color: color
+            };
+
+            gameState.party.push(newAlly);
+            appendToLog("[ALIADOS] Novo aliado '" + name + "' adicionado ao grupo.");
+            nameInput.value = "";
+            attacksInput.value = "";
+            updateUI();
+        }
+
+        /**
+         * Remove um aliado pelo índice.
+         */
+        function removeAlly(index) {
+            if (index >= 0 && index < gameState.party.length) {
+                var name = gameState.party[index].name;
+                gameState.party.splice(index, 1);
+                appendToLog("[ALIADOS] Aliado '" + name + "' removido do grupo.");
+                updateUI();
+            }
+        }
+        
+        /**
+         * Renderiza a lista de aliados para edição e remoção.
+         */
+        function renderAllyManagement() {
+            var container = document.getElementById('current-ally-management');
+            container.innerHTML = '';
+
+            gameState.party.forEach(function(ally, index) {
+                var card = `
+                    <div class="flex items-center justify-between p-2 rounded-md bg-gray-800 border border-gray-600">
+                        <div class="flex-grow">
+                            <input type="text" value="${ally.name}" 
+                                   onchange="gameState.party[${index}].name = this.value; saveGame(); updateUI();" 
+                                   class="custom-select w-full mb-1 text-sm font-bold bg-gray-700">
+                            <input type="text" value="${ally.attacks.join(', ')}" 
+                                   onchange="gameState.party[${index}].attacks = this.value.split(',').map(a => a.trim()).filter(a => a.length > 0); saveGame(); updateUI();" 
+                                   class="custom-select w-full text-xs bg-gray-700">
+                        </div>
+                        <button onclick="removeAlly(${index})" class="ml-2 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex-shrink-0">Remover</button>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', card);
+            });
+        }
+
+
+        // ==========================================================
+        // FUNÇÕES DE AÇÃO PRINCIPAIS
+        // ==========================================================
+        
+        /**
+         * Altera a CA de Ektheon.
+         */
+        function changeEktheonStat(stat, amount) {
+            if (stat === 'ca') {
+                gameState.ektheon.ca = Math.max(1, gameState.ektheon.ca + amount);
+                appendToLog("[RECURSO] CA de Ektheon Cadmon ajustada em " + amount + ". CA Atual: " + gameState.ektheon.ca + ".");
+            }
+            updateUI();
+        }
+        
+        /**
+         * Atualiza a arma selecionada por Ektheon.
+         */
+        function updateSelectedWeapon() {
+            var weaponSelect = document.getElementById('weapon-select');
+            var selectedName = weaponSelect.value;
+            var selectedWeapon = WEAPONS.find(function(w) { return w.name === selectedName; });
+            
+            if (selectedWeapon) {
+                gameState.ektheon.weapon = selectedWeapon;
+                appendToLog("[EQUIPAMENTO] Ektheon equipou " + selectedWeapon.name + " (Dano: " + selectedWeapon.damage + ").");
+            }
+            updateUI();
+        }
+
+        /**
+         * Simula o ataque de Ektheon com a Arma Selecionada.
+         */
+        function performAttack() {
+            var targetCA = gameState.targetCA; 
+            var weapon = gameState.ektheon.weapon;
+            
+            if (!weapon) {
+                appendToLog("ERRO: Ektheon não tem nenhuma arma equipada. Compre uma na loja ou verifique o inventário.");
+                return;
+            }
+
+            function calculateDamage(damageString) {
+                var totalDamage = 0;
+                var parts = damageString.split('+').map(function(p) { return p.trim(); });
+
+                parts.forEach(function(part) {
+                    if (part.includes('d')) {
+                        var dParts = part.split('d');
+                        var numDice = parseInt(dParts[0]) || 1;
+                        var sides = parseInt(dParts[1]);
+                        for (var i = 0; i < numDice; i++) {
+                            totalDamage += rollDie(sides);
+                        }
+                    } else {
+                        totalDamage += parseInt(part) || 0;
+                    }
+                });
+                return totalDamage;
+            }
+
+            var damageText = String(weapon.damage);
+            var isFixedDamage = !damageText.includes('d');
+
+            var attackRoll = rollDie(20);
+            var resultMessage = "[ATAQUE " + weapon.name.toUpperCase() + "] CA Alvo: " + targetCA + ". ";
+
+            if (attackRoll >= targetCA) {
+                var isCritical = attackRoll === 20;
+                var damageTotal;
+
+                if (isFixedDamage) {
+                    damageTotal = parseInt(damageText) || 0;
+                    resultMessage += "**SUCESSO!** Rolagem " + attackRoll + " (" + (isCritical ? 'CRÍTICO' : 'ACERTO') + "). Dano Fixo: **" + damageTotal + " de Dano**.";
+                } else {
+                    damageTotal = calculateDamage(damageText);
+                    resultMessage += "**SUCESSO!** Rolagem " + attackRoll + " (" + (isCritical ? 'CRÍTICO' : 'ACERTO') + "). Dano calculado (" + damageText + "): **" + damageTotal + " de Dano**.";
+                }
+            } else {
+                resultMessage += "**FALHA!** Rolagem " + attackRoll + ". Dano evitado.";
+            }
+
+            appendToLog(resultMessage);
+        }
+
+        /**
+         * Simula a Jogada de Intimidação.
+         */
+        function performIntimidate() {
+            var targetCAInput = gameState.targetCA; 
+            var intimidationMod = gameState.ektheon.intimidation;
+            var ektheon = gameState.ektheon; // Obtém o objeto Ektheon
+
+            var roll = rollDie(20);
+            var total = roll + intimidationMod;
+            var resultMessage = "[INTIMIDAÇÃO] CD Alvo (Defesa do Inimigo/CA): " + targetCAInput + ". ";
+
+            if (total >= targetCAInput) {
+                var damageRoll = rollDie(20);
+                var bonus = 2; 
+                var finalDamage = damageRoll + bonus;
+
+                // --- NOVO: RECOMPENSAS POR SUCESSO DE INTIMIDAÇÃO ---
+                ektheon.intimidation += 1; // 1. Aumenta o stat de intimidação
+                
+                var xpGain = 10 * ektheon.level; // Recompensa de XP baseada no nível (10 XP/Nível)
+                var moneyGain = 20 * ektheon.level; // Recompensa de Moeda baseada no nível (20 Ouro/Nível)
+                
+                ektheon.xp += xpGain;
+                ektheon.money += moneyGain;
+                // --- FIM NOVO ---
+                
+                appendToLog(resultMessage + "**SUCESSO!** Total " + total + " (Dado: " + roll + " + Mod: " + intimidationMod + ").\n" +
+                "Você intimida o Alvo! O dano (d20 + 2) é: " + damageRoll + " + " + bonus + " = **" + finalDamage + " de Dano**." +
+                "\nVocê ganhou **+" + xpGain + " XP**, **+" + moneyGain + " Moedas de Ouro** e +1 no seu Modificador de Intimidação!" // Adicionar log das recompensas
+                );
+                
+                checkLevelUp(); // Verifica se há subida de nível
+            } else {
+                appendToLog(resultMessage + "**FALHA!** Total " + total + " (Dado: " + roll + " + Mod: " + intimidationMod + ").\n" +
+                "O alvo não se impressionou."
+                );
+            }
+            updateUI(); // Atualiza a UI para refletir as mudanças
+        }
+
+        /**
+         * Simula o uso do Anel Mágico.
+         */
+        function useMagicRing() {
+            var cost = 0.5;
+            var ektheon = gameState.ektheon;
+
+            if (ektheon.mana.current < cost) {
+                appendToLog("[ANEL MÁGICO] **FALHA!** Mana insuficiente. Necessário " + cost.toFixed(1) + ", disponível " + ektheon.mana.current.toFixed(1) + ".");
+                return;
+            }
+
+            ektheon.mana.current -= cost;
+            appendToLog("[ANEL MÁGICO] Anel Mágico ativado. Mana gasta: " + cost.toFixed(1) + ". Mana restante: " + ektheon.mana.current.toFixed(1) + ".");
+            updateUI();
+        }
+        
+        /**
+         * Simula o Desafio de Crime ou Briga, incluindo a participação de aliados e impacto na moeda.
+         */
+        function performCrimeChallenge() {
+            var crimeSelect = document.getElementById('crime-select');
+            var selectedCrimeName = crimeSelect.value;
+            var crime = CRIMES.find(function(c) { return c.name === selectedCrimeName; });
+
+            var enemySelect = document.getElementById('enemy-select');
+            var selectedEnemyName = enemySelect.value;
+            var enemy = ENEMIES.find(function(e) { return e.name === selectedEnemyName; });
+
+            if (!crime || selectedCrimeName === "none" || !enemy || selectedEnemyName === "none") {
+                appendToLog("ERRO: Selecione um Crime E um Inimigo/Desafio válido para iniciar.");
+                return;
+            }
+
+            // Checagem de Nível (redundante, mas seguro)
+            if (gameState.ektheon.level < crime.requiredLevel || gameState.ektheon.level < enemy.requiredLevel) {
+                 appendToLog("ERRO: Seu Nível (" + gameState.ektheon.level + ") é muito baixo para este desafio. Requer Nível " + Math.max(crime.requiredLevel, enemy.requiredLevel) + ".");
+                 return;
+            }
+            
+            var allyCheckboxes = document.querySelectorAll('#ally-participation-checkboxes input[type="checkbox"]:checked');
+            var allyBonus = allyCheckboxes.length;
+            var participatingAllies = Array.from(allyCheckboxes).map(function(cb) { return cb.dataset.allyName; }).join(', ') || "Nenhum";
+            
+            var ektheon = gameState.ektheon;
+            var roll = rollDie(20);
+            
+            var modifier = ektheon.level + allyBonus; 
+            var total = roll + modifier;
+            
+            var resultMessage = "[DESAFIO - " + crime.name.toUpperCase() + " vs. " + enemy.name + "] CD Alvo: " + crime.difficulty + ". ";
+            resultMessage += "\nParticipação de Aliados (+Bônus): " + participatingAllies + " (Total: +" + allyBonus + " na rolagem).";
+            
+            if (total >= crime.difficulty) {
+                // SUCESSO!
+                ektheon.xp += crime.xpReward;
+                ektheon.crimes += crime.crimeIncrease;
+                var moneyGain = Math.round(crime.difficulty * 2);
+                ektheon.money += moneyGain;
+
+                appendToLog(resultMessage + "\n**SUCESSO!** Total " + total + " (Dado: " + roll + " + Mod: " + modifier + ").\n" +
+                "Crime/Briga bem-sucedido! +" + crime.xpReward + " XP, +" + crime.crimeIncrease + " em Crimes e você ganha **" + moneyGain + " Moedas de Ouro**."
+                );
+            } else {
+                // FALHA NO CRIME -> BRIGA DE ESCAPE
+                var brigaRoll = rollDie(20);
+                var brigaCD = enemy.def; 
+                var brigaMod = ektheon.briga;
+                var brigaTotal = brigaRoll + brigaMod + allyBonus; 
+
+                appendToLog(resultMessage + "\nFalha no Crime! Tentando Briga para escapar/finalizar. CA/Defesa do Inimigo: " + brigaCD);
+
+                if (brigaTotal >= brigaCD) {
+                    // SUCESSO NA BRIGA (ESCAPE)
+                    ektheon.briga += 1; 
+                    appendToLog("[BRIGA] Rolagem de Briga bem-sucedida! Total " + brigaTotal + ". Você escapa ou vence o combate. +" + 1 + " em Briga.");
+                } else {
+                    // FALHA NA BRIGA (PUNIÇÃO)
+                    var damageTaken = enemy.atk; 
+                    ektheon.hp.current = Math.max(0, ektheon.hp.current - damageTaken);
+
+                    var penaltyXP = Math.floor(crime.xpReward / 2);
+                    ektheon.xp = Math.max(0, ektheon.xp - penaltyXP);
+                    
+                    var moneyLoss = Math.round(crime.difficulty * 1.5);
+                    ektheon.money = Math.max(0, ektheon.money - moneyLoss);
+
+                    appendToLog("[BRIGA] Rolagem de Briga falhou! Você sofre o ataque do inimigo. Punição:\n" + 
+                    " - " + damageTaken + " HP. HP Atual: " + ektheon.hp.current + "\n" +
+                    " - " + penaltyXP + " XP." + "\n" +
+                    " - Você perde **" + moneyLoss + " Moedas de Ouro**."
+                    );
+                }
+            }
+
+            checkLevelUp(); 
+            updateUI();
+        }
+
+        /**
+         * Função de utilidade para atualizar HP, Mana, XP ou Moeda.
+         */
+        function updateResource(resource, amount) {
+            var ektheon = gameState.ektheon;
+
+            if (resource === 'xp') {
+                ektheon.xp = Math.max(0, ektheon.xp + amount);
+                appendToLog("[RECURSO] XP atualizado: " + (amount > 0 ? '+' : '') + amount + ". XP atual: " + ektheon.xp);
+                checkLevelUp();
+            } else if (resource === 'hp') {
+                ektheon.hp.current = Math.min(ektheon.hp.max, Math.max(0, ektheon.hp.current + amount));
+                appendToLog("[RECURSO] HP atualizado: " + (amount > 0 ? '+' : '') + amount + ". HP atual: " + ektheon.hp.current);
+            } else if (resource === 'mana') {
+                ektheon.mana.current = Math.min(ektheon.mana.max, Math.max(0, ektheon.mana.current + amount));
+                appendToLog("[RECURSO] Mana atualizado: " + (amount > 0 ? '+' : '') + amount + ". Mana atual: " + ektheon.mana.current.toFixed(1));
+            } else if (resource === 'money') {
+                 ektheon.money = Math.max(0, ektheon.money + amount);
+                 appendToLog("[RECURSO] Moeda atualizada: " + (amount > 0 ? '+' : '') + amount + ". Moeda atual: " + ektheon.money);
+            }
+
+            updateUI();
+        }
+
+        /**
+         * Função de utilidade para atualizar HP dos aliados.
+         */
+        function updateAllyHP(index, amount) {
+            var ally = gameState.party[index];
+            var newHP = ally.hpCurrent + amount;
+            
+            ally.hpCurrent = Math.min(ally.hpMax, Math.max(0, newHP));
+            appendToLog("[ALIADO - " + ally.name + "] HP ajustado: " + (amount > 0 ? '+' : '') + amount + ". HP Atual: " + ally.hpCurrent + "/" + ally.hpMax + ".");
+
+            if (ally.hpCurrent <= 0 && amount < 0) {
+                 appendToLog("[ALIADO - " + ally.name + "] O aliado foi incapacitado/destruído e não pode mais participar de desafios.");
+            }
+            
+            updateUI();
+        }
+
+        // ==========================================================
+        // LÓGICA DE LOJA (SHOPPING)
+        // ==========================================================
+
+        /**
+         * Renderiza os itens na seção de compras.
+         */
+        function renderShopItems() {
+            var container = document.getElementById('shop-items-container');
+            container.innerHTML = '';
+
+            SHOP_ITEMS.forEach(function(item) {
+                var isPurchased = gameState.ektheon.inventory.some(i => i.name === item.name && item.type === 'weapon');
+                var canAfford = gameState.ektheon.money >= item.cost;
+                var buttonText = isPurchased ? "Comprado" : (canAfford ? "Comprar" : "Sem Ouro");
+                var buttonClass = isPurchased ? "bg-gray-500 cursor-not-allowed" : (canAfford ? "bg-green-600 hover:bg-green-700" : "bg-red-700 cursor-not-allowed");
+                var isDisabled = isPurchased || !canAfford;
+
+                var card = `
+                    <div class="shop-item-card p-4 rounded-lg flex flex-col justify-between" style="border-color: ${item.type === 'weapon' ? '#f59e0b' : (item.type === 'consumable' ? '#48bb78' : '#805ad5')}">
+                        <div>
+                            <p class="font-bold text-lg text-${item.type === 'weapon' ? 'yellow' : (item.type === 'consumable' ? 'green' : 'purple')}-400">${item.name}</p>
+                            <p class="text-xs text-gray-400 mb-2">Tipo: ${item.type === 'weapon' ? 'Arma' : (item.type === 'consumable' ? 'Consumível' : 'Especial')}</p>
+                            <p class="text-sm text-gray-300">${item.description}</p>
+                        </div>
+                        <div class="mt-3 flex justify-between items-center">
+                            <span class="text-lg font-bold text-yellow-200">${item.cost} Ouro</span>
+                            <button onclick="buyItem('${item.id}', ${item.cost})" 
+                                    class="text-white px-3 py-1 rounded-lg text-sm ${buttonClass}" 
+                                    ${isDisabled ? 'disabled' : ''}>
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', card);
+            });
+        }
+
+        /**
+         * Lógica para comprar um item.
+         * @param {string} itemId - O ID do item na lista SHOP_ITEMS.
+         * @param {number} cost - O custo do item (para checagem final).
+         */
+        function buyItem(itemId, cost) {
+            var item = SHOP_ITEMS.find(i => i.id === itemId);
+            var ektheon = gameState.ektheon;
+
+            if (!item) {
+                appendToLog("ERRO: Item não encontrado no catálogo da loja.");
+                return;
+            }
+            if (ektheon.money < cost) {
+                appendToLog("ERRO: Ouro insuficiente para comprar " + item.name + ".");
+                return;
+            }
+
+            ektheon.money -= cost;
+            var success = false;
+
+            if (item.type === 'weapon') {
+                // Checa se já tem
+                if (ektheon.inventory.some(i => i.name === item.name && i.type === 'weapon')) {
+                    appendToLog("AVISO: Você já possui a arma " + item.name + ".");
+                    ektheon.money += cost; // Devolve o ouro
+                    return;
+                }
+                // Adiciona ao inventário (e libera no dropdown)
+                ektheon.inventory.push({ name: item.name, damage: item.itemData.damage, type: 'weapon', uses: -1 });
+                appendToLog("[COMPRA] Arma adquirida! Você agora pode usar a " + item.name + "!");
+                success = true;
+            } 
+            else if (item.type === 'consumable') {
+                // Efeito imediato: Poções
+                if (item.effect.type === 'hp') {
+                    updateResource('hp', item.effect.amount);
+                    appendToLog("[COMPRA] Poção de Cura consumida. +" + item.effect.amount + " HP.");
+                } else if (item.effect.type === 'mana') {
+                    updateResource('mana', item.effect.amount);
+                    appendToLog("[COMPRA] Poção de Mana consumida. +" + item.effect.amount + " Mana.");
+                }
+                success = true;
+            }
+            else if (item.type === 'special') {
+                // Itens Especiais (Adiciona ao inventário para controle de usos)
+                var existingItem = ektheon.inventory.find(i => i.name === item.name && i.type === 'special');
+                if (existingItem) {
+                     existingItem.uses = (existingItem.uses || 0) + 1;
+                } else {
+                     ektheon.inventory.push({ name: item.name, type: 'special', uses: 1, description: item.description });
+                }
+                appendToLog("[COMPRA] Item Especial adquirido: " + item.name + ". Você possui " + (existingItem ? existingItem.uses + 1 : 1) + " uso(s).");
+                success = true;
+            }
+
+
+            if (success) {
+                appendToLog("Você gastou " + cost + " Ouro. Ouro restante: " + ektheon.money + ".");
+                updateUI();
+            } else {
+                 // Deve ser um erro de lógica, devolve o ouro.
+                 ektheon.money += cost; 
+                 appendToLog("ERRO: A compra falhou inesperadamente. Ouro devolvido.");
+            }
+        }
+
+
+        // ==========================================================
+        // INICIALIZAÇÃO
+        // ==========================================================
+
+        window.onload = function() {
+            loadGame();
+
+            // Os ComboBoxes são populados/filtrados dentro de updateUI, que é chamado por loadGame
+
+            // 3. Atribui listeners aos botões de ação
+            document.getElementById('action-attack').addEventListener('click', performAttack);
+            document.getElementById('action-intimidate').addEventListener('click', performIntimidate);
+            document.getElementById('action-use-ring').addEventListener('click', useMagicRing);
+            document.getElementById('action-crime-challenge').addEventListener('click', performCrimeChallenge);
+            
+            // Botão genérico d20
+            document.getElementById('action-d20').addEventListener('click', function() {
+                var roll = rollDie(20);
+                appendToLog("[TESTE] Rolagem d20 pura (Iniciativa/Teste): " + roll);
+            });
+        };
+    </script>
+
+</body>
+</html>
+
