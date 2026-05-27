@@ -1,0 +1,55 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> WAR URB 2025</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Montador de Tabuleiro WAR URB</h1>
+<div class="dice-container">
+    <div id="unitDice" class="dice d10"></div>
+    <button onclick="rollDice('unit')">Colocar Unidade</button>
+
+    <div id="airDice" class="dice d30"></div>
+    <button onclick="rollDice('air')"> (D8)</button>
+
+    <div id="navyDice" class="dice d20"></div>
+    <button onclick="rollDice('navy')"> (D6)</button>
+
+    <div id="armyDice" class="dice d10"></div>
+    <button onclick="rollDice('army')"> (D4)</button>
+</div>
+
+<div id="map-container">
+    </div>
+
+    <div id="board-container">
+        <div id="board">
+            </div>
+    </div>
+
+    <div id="controls-container">
+        <div id="piece-selector">
+            <h2>Peças para Montagem</h2>
+            <div id="pieces-list">
+                </div>
+            <p>Arraste as peças selecionadas para o tabuleiro.</p>
+        </div>
+
+        <div id="remove-area">
+            <h2>Remover Peça</h2>
+            <div class="drop-target-area">
+                Arraste peças do tabuleiro para cá para removê-las.
+            </div>
+        </div>
+    </div>
+    
+    <button id="reset-button">Limpar Tabuleiro</button>
+
+    <script src="script.js"></script>
+</body>
+</html>
