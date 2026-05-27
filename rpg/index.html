@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG System Hub</title>
+
+    <style>
+        :root {
+            --color-bg-dark: #0f172a;
+            --color-bg-card: #1e293b;
+            --color-text-light: #f8fafc;
+            --color-highlight: #818cf8;
+            --color-secondary: #334155;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-bg-dark);
+            color: var(--color-text-light);
+            padding: 20px;
+        }
+
+        #app {
+            max-width: 1280px;
+            margin: auto;
+        }
+
+        .container-box {
+            background-color: var(--color-bg-card);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,.2);
+            margin-bottom: 32px;
+        }
+
+        .dice-button {
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            color: #fff;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #0f172a;
+        }
+        .dice-button:active { transform: translateY(2px); box-shadow: none; }
+
+        .d6 { background:#16a34a }
+        .d10 { background:#ca8a04 }
+        .d20 { background:#dc2626 }
+        .d40 { background:#9333ea }
+        .d4 { background:#16a34a }
+        .btn-draw { background:#4f46e5 }
+
+        #dice-container {
+            display: grid;
+            grid-template-columns: repeat(4,1fr);
+            gap: 16px;
+        }
+
+        #dice-result {
+            margin-top:16px;
+            font-size:24px;
+            text-align:center;
+            color:#4ade80;
+        }
+
+        #current-card {
+            width: 100%;
+            height: 256px;
+            border: 4px dashed var(--color-highlight);
+            border-radius: 8px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:18px;
+            background:#334155;
+        }
+
+        .card-draggable {
+            cursor: grab;
+            width: 128px;
+            height: 192px;
+            border-radius: 8px;
+            border:4px solid #facc15;
+            box-shadow:0 8px 12px rgba(0,0,0,.5);
+        }
+
+        #panels-container {
+            display:grid;
+            grid-template-columns: repeat(2,1fr);
+            gap:24px;
+        }
+
+        .panel {
+            background:#334155;
+            padding:16px;
+            border-radius:12px;
+            border:1px solid rgba(129,140,248,.5);
+        }
+
+        .drop-zone {
+            width:100%;
+            height:128px;
+            border:2px dashed var(--color-secondary);
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            background:rgba(51,65,85,.5);
+            margin-bottom:8px;
+        }
+
+        .drop-zone img {
+            width:96px;
+            height:112px;
+            border-radius:6px;
+        }
+
+        .stat-control {
+            display:flex;
+            justify-content:space-between;
+            margin:4px 0;
+        }
+
+        .stat-buttons button {
+            width:32px;
+            height:32px;
+            border-radius:50%;
+            font-weight:700;
+            border:none;
+            cursor:pointer;
+        }
+
+        .minus { background:#ef4444; color:white; }
+        .plus { background:#22c55e; color:white; }
+
+        .stat-value {
+            width:40px;
+            text-align:center;
+            font-size:20px;
+            font-family:monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1 style="text-align:center;color:var(--color-highlight);font-size:32px;font-weight:700;">RPG System Hub</h1>
+
+        <!-- Dados -->
+        <div class="container-box">
+            <h2 class="text-xl mb-4 text-center">Dados de RPG</h2>
+            <div id="dice-container">
+                <button onclick="rollDice(6)" class="dice-button d6">Rolar d6</button>
+                <button onclick="rollDice(10)" class="dice-button d10">Rolar d10</button>
+                <button onclick="rollDice(20)" class="dice-button d20">Rolar d20</button>
+                <button onclick="rollDice(40)" class="dice-button d40">Rolar d40</button>
+<button onclick="rollDice(4)" class="dice-button d4">Rolar d4</button>
+            </div>
+            <p id="dice-result">Resultado: -</p>
+        </div>
+
+        <!-- Carta Sorteada -->
+        <div class="container-box">
+            <h2 class="text-xl mb-4 text-center">Carta Sorteada</h2>
+            <div id="current-card">Clique em Sortear Carta</div>
+            <button onclick="drawCard()" class="dice-button btn-draw" style="width:100%;margin-top:12px;">
+                Sortear Carta (1-20.jpg)
+            </button>
+        </div>
+
+        <!-- Painéis -->
+        <div id="panels-container"></div>
+    </div>
+<!-- MEMO PARA HISTÓRIA DO RPG -->
+<div class="container-box">
+    <h2 style="text-align:center; margin-bottom:12px; color:var(--color-highlight);">
+        História do RPG
+    </h2>
+
+    <textarea id="rpg-history" maxlength="4000"
+        placeholder="Escreva aqui sua história de até 4000 caracteres..."
+        style="
+            width:100%;
+            height:240px;
+            background:#1e293b;
+            color:#f8fafc;
+            border:2px solid var(--color-highlight);
+            border-radius:10px;
+            padding:12px;
+            font-size:16px;
+            resize:vertical;
+            outline:none;
+        "></textarea>
+
+    <p style="text-align:right; font-size:12px; margin-top:6px; color:#94a3b8;">
+        <span id="char-count">0</span>/4000 caracteres
+    </p>
+</div>
+<p>   d10 - preludio 
+
+I. A Granja em Chamas e a Dilema Élfico
+Três batedores elfos da floresta, acostumados à serenidade ancestral das árvores, tropeçam em uma cena de caos chocante: a Granja de Tio Barnaby, um ponto pacífico de comércio, está consumida por chamas esmeralda e negra. Orcs, empunhando machados rudimentares, regozijam-se, massacrando o gado. O dilema dos elfos é imediato e brutal. Seu juramento ancestral os impede de interferir diretamente nos assuntos dos "pequenos" (humanos e halflings), mas o ataque é uma violação clara da Trégua da Lua Crescente. A líder, Lyra, vê a sombra de uma ameaça maior no ataque orc. Ela deve decidir: manter a neutralidade e arriscar uma guerra maior, ou quebrar o juramento para salvar inocentes, iniciando assim uma possível cruzada élfica. A fumaça da granja, mais densa do que qualquer névoa de guerra, sublinha a urgência de sua escolha.
+II. O Culto Interrompido e o Arquivista Esquecido
+Em um templo de mármore branco em ruínas, o culto secreto das Vestais da Deusa Silenciosa atinge o clímax de sua cerimônia lunar, quando a porta de obsidiana se estilhaça. Não são inquisidores, mas um único homem cambaleante: o Arquivista Elara. Ele não é um herege, mas um bibliotecário que fugiu da Grande Biblioteca de Kymere, agora afundando em um pântano temporal. Elara carrega um único pergaminho iluminado, que ele afirma conter a localização não de Atlântida, mas do método para desafundá-la. A interrupção força as vestais a uma escolha: sacrificar a pureza de seu ritual para ouvir a profecia do homem, ou bani-lo, permitindo que o segredo de Atlântida se perca para sempre, enquanto a poeira mágica do pergaminho flutua no ar do templo.
+III. Atlântida, a Cidade que Ascendeu
+Atlântida não afundou, mas ascendeu. Ela agora é uma cidade-ilha flutuante, propulsionada por cristais etéreos em uma órbita baixa e errática. O problema é que a estabilidade de seus motores está falhando, causando "chuvas de destroços" que caem sobre as civilizações abaixo. Um jovem engenheiro da superfície, que só conhece a lendária cidade por mitos, é recrutado por uma embaixada atlante secreta para corrigir o problema. Eles precisam da sua mente não afetada pela arrogância da magia atlante. Ele deve viajar até a metrópole celestial e consertar o motor principal – um coração pulsante de energia pura – antes que uma queda catastrófica inicie uma nova Era do Gelo e esmague um reino inteiro sob seu peso.
+IV. O Ladrão e a Múmia Reanimada
+Em um museu noturno, um ladrão de arte habilidoso chamado Kael tenta roubar o amuleto de um faraó menor. Ele é interrompido quando a múmia do sarcófago, sem o amuleto que a prendia ao sono eterno, se levanta. Não é um monstro sedento de sangue, mas um rei-filósofo confuso e gentil, que acredita ter dormido apenas uma noite. O faraó, Tutmés IV, espera que seus servos o recebam, mas se depara com alarmes e câmeras de segurança. Kael se torna o guia relutante do rei na modernidade, tentando devolvê-lo ao sono ou ao Egito sem alertar as autoridades. A múmia, por sua vez, ensina a Kael o verdadeiro valor da história, e o ladrão se vê mais interessado no passado do que no valor de sua próxima joia.
+V. O Palhaço Invocador de Demônios
+Zizzo é o palhaço mais engraçado do Grande Circo Arcano, conhecido por seus truques de levitação e flores que soltam fogo. Ninguém, nem mesmo a Mestra de Cerimônias, sabe que Zizzo usa truques para invocar demônios menores, os "Diabinhos da Piada", que o ajudam em suas performances. O problema surge quando um desses Diabinhos se torna um Diabo Maior, um demônio da ironia chamado Rictus, que começa a trocar as piadas de Zizzo por profecias assustadoras sobre o fim do mundo. Zizzo deve encontrar uma forma de "desinvocar" a criatura sem quebrar seu personagem no palco, e enquanto Rictus espalha o caos com a verdade, transformando o picadeiro no centro de uma iminente catástrofe dimensional.
+VI. A Ponte Entre Sonhos e a Burocracia
+Existe uma ponte oculta que conecta o mundo desperto ao Mundo dos Sonhos, mas ela está sob a guarda de um ineficiente e sobrecarregado Departamento de Fronteiras Oníricas. A burocrata-chefe, uma gnomo rabugenta chamada Griselda, descobre que um turista dos sonhos, um pesadelo-dragão de três cabeças, passou sem o carimbo de "Viajante de Longa Permanência". Isso pode causar uma anarquia de pesadelos no mundo real. Ela recruta um jovem e idealista estagiário do turno da noite para rastrear e deportar o dragão antes que ele cause a destruição, mas o estagiário se apaixona pela arquitetura de pesadelos e começa a questionar se o dragão não seria um refugiado e se a burocracia não é o verdadeiro pesadelo.
+VII. A Última Biblioteca de Trolls
+Os trolls são conhecidos por sua força bruta e apetite por rochas, mas há um segredo: eles mantêm a maior biblioteca de sabedoria antiga, escrita em lajes de obsidiana. O último bibliotecário troll, um erudito de 300 anos chamado Rok, descobre que a tinta mágica que preserva as palavras está secando. Se a tinta desaparecer, o conhecimento de eras inteiras será perdido. O problema é que o único ingrediente para restaurar a tinta é a lágrima de uma Fada do Gelo, uma criatura lendária e extremamente reclusa. Rok, que mal consegue andar, precisa convencer um grupo de aventureiros a embarcar em uma jornada para encontrar a Fada, trocando livros por bravura e revelando que a verdadeira força de um troll está em suas palavras, não em seus músculos.
+VIII. A Bruxa da Metrópole e a Maldição do Celular
+Morgana é uma bruxa de \mathbf{VIII} (oitocentos) anos, disfarçada de atendente de telemarketing em uma metrópole moderna, vendendo "soluções mágicas" baratas. Ela descobre que uma maldição antiga, destinada a aprisioná-la, foi incorporada a um novo aplicativo de rede social que se tornou viral. A maldição drena o poder mágico de Morgana cada vez que alguém usa a hashtag #MorganaFail. Ela precisa desativar o aplicativo e quebrar a maldição antes que seja completamente drenada e exposta. Seu plano envolve invadir a sede da empresa de tecnologia, mas ela não sabe mexer com firewalls ou programação, e deve se aliar a um gênio da informática cético que pensa que a magia é apenas um código de computador avançado, transformando a luta em uma batalha entre hexagramas e hackers.
+IX. Os Goblins e a Corrida Espacial
+Os Goblins não sonham com ouro ou joias, mas com a lua. Eles descobriram um motor a vapor alimentado por fungos que podem levá-los ao espaço. Seu plano é construir o primeiro foguete goblin para reivindicar a lua para o seu Clã. No entanto, eles têm que competir com uma nação tecnologicamente avançada de anões, que está construindo um foguete a combustível sólido e zombando da tecnologia "primitiva" dos goblins. A corrida é mais do que orgulho; o primeiro a chegar à lua pode reivindicar os depósitos de "Queijo Lunar", um mineral mágico que pode revolucionar a alquimia. O engenheiro goblin, Grokk, deve superar os sabotadores anões e os defeitos do seu motor antes do lançamento, provando que engenho vale mais que potência.
+X. O Dragão de Tinta e a Censura
+Em um reino onde a escrita é considerada uma magia perigosa, existe um Dragão da Tinta que se alimenta de histórias censuradas e proibidas. Ele vive escondido nas margens da Biblioteca Real, devorando qualquer manuscrito que o Rei queira apagar da história. O Dragão, chamado Ignis, não destrói o conhecimento, mas o armazena em sua pele, onde as palavras brilham como escamas. O problema começa quando o Rei proíbe a história de amor da sua própria filha, e o dragão a absorve. O Dragão, então, se torna o único guardião do romance. A princesa deve decifrar as palavras na pele do dragão, que só aparecem sob o luar, e reescrever sua história de amor antes que o Rei encontre Ignis e o destrua, apagando a história de seu coração para sempre. </p>
+
+
+
+
+<p>| d20 | Personagem | Cenário |
+
+
+|---|---|---|
+| XI | Um Cavaleiro Bêbado que só consegue falar em rimas e está convencido de que o jogador é seu escudeiro. | Uma estalagem subterrânea, que muda de localização a cada meia-noite. |
+| XII | Um Golem de Café, lento e carrancudo, cuja energia está ligada a um bule de café prestes a esfriar. | O topo de uma torre de relógio abandonada no centro da cidade, onde o tempo flui mais devagar. |
+| XIII | A Baronesa das Pulgas, uma nobre decadente que comanda um exército de pulgas treinadas para furtar objetos brilhantes. | Uma plantação hidropônica de cogumelos gigantes que funcionam como barcos em um rio de lama tóxica. |
+| XIV | Um Espantalho Sábio que se recusa a dar conselhos a menos que a pessoa resolva um enigma sobre agricultura. | Uma rua que só existe durante um eclipse lunar total. |
+| XV | O Último Minotauro Cético, que desacreditou de todos os mitos e agora é um contador entediado, preso em dívidas. | Um labirinto de escritórios públicos construído inteiramente de vidro e espelhos. |
+| XVI | Uma Sereia com Fobia de Água (Hydrophobia), que vive em uma banheira enferrujada e só viaja em carruagens secas. | Um ferro-velho mágico onde cada peça enferrujada é um artefato de um mundo paralelo. |
+| XVII | Um Cão de Caça Fantasma, que está buscando o osso que perdeu há \mathbf{200} (duzentos) anos e precisa de um cheiro moderno para rastrear. | Um jardim botânico de plantas carnívoras que cantam ópera. |
+| XVIII | Um Mágico que só pode usar truques de cartas, mas está tentando forçar uma invocação demoníaca com um baralho viciado. | Um elevador em movimento perpétuo dentro de uma montanha, que conecta dimensões aleatórias. |
+| XIX | Um Mercador de Almas, que só aceita pagamento em "emoções raras" (como a surpresa genuína ou a inveja de um elfo). | Uma passarela de moda onde a roupa mais escandalosa é a mais perigosa. |
+| XX | Um Professor de Etiqueta Zumbi, que insiste em corrigir a postura e o vocabulário do jogador enquanto o persegue. | Um acampamento de férias de Verão para criaturas malignas que está sendo invadido por campistas humanos barulhentos. |
+| XXI | Um Bebê Dragão que espirra fogo e está chorando porque perdeu seu bico de pato de estimação. | A área de testes de um novo e altamente ilegal xampu mágico anti-gravidade. |
+| XXII | Uma Ladra Elfa do Gelo com claustrofobia severa, que só pode se mover em espaços abertos sob neve. | O porão de uma padaria onde pães de gengibre ganham vida e formam bandos. |
+| XXIII | O Pássaro de Fogo da Fofoca, que só pode ser alimentado com segredos embaraçosos de pessoas poderosas. | Uma feira de troca de animais de estimação onde todas as criaturas são mutantes telepatas. |
+| XXIV | Um Barista Súcubo, que tenta seduzir clientes a comprar bebidas excessivamente doces e mortais com nomes estranhos. | Uma fila interminável para entrar no "Reino da Felicidade Eterna" que tem mais burocracia do que o inferno. |
+| XXV | Um Artista Marcial Cego, que insiste em lutar usando apenas o som, mas está ouvindo um rádio quebrado. | Uma sala de troféus encantada onde todos os itens se ofendem facilmente. |
+| XXVI | Um Cavalheiro Fantasma que quer pagar a conta de um jantar \mathbf{500} (quinhentos) anos antes, mas só tem moedas da época. | Uma ponte que só é visível para quem não tem medo de altura. |
+| XXVII | Um Duende da Contabilidade, que rouba meias para usá-las como "sacos de moedas" e está fazendo uma auditoria fiscal nas sombras. | O interior de uma máquina de pinball gigante em funcionamento, onde o jogador é a bolinha. |
+| XXVIII | Uma Valquíria Viciada em Cafeína que perdeu suas asas na máquina de lavar, procurando o par de meias (as asas). | O vestiário de um time de Quadribol místico, repleto de roupas íntimas mágicas e equipamentos fedorentos. |
+| XXIX | O Chef de Cozinha Goblin que só consegue preparar pratos saborosos se for com ingredientes roubados e temperos venenosos. | Um campo de batalha antigo que só revive uma vez por ano, durante uma tempestade de areia. |
+| XXX | Um Zumbi com Transtorno Obsessivo-Compulsivo que se recusa a comer cérebros que não estejam perfeitamente organizados por QI. | O quarto de um bebê gigante, onde o jogador deve se mover entre brinquedos maiores que cidades. |</p>
+
+
+<p>d20 - desfecho 
+
+
+| 1 | XXXI | Vitória | O Personagem derruba o Chefão na lata de lixo cósmica do ferro-velho mágico (\mathbf{XVI}); o lixo o compacta. O perigo é agora reciclagem. |
+| 2 | XXXII | Empate | O Chefão recebe uma multa de trânsito onírico (\mathbf{VI}); ele desiste da luta e se retira furioso, prometendo preencher papelada depois. |
+| 3 | XXXIII | Derrota | O Chefão revela que a luta foi apenas um clone ou uma ilusão. O verdadeiro vilão aparece e, com um gesto indiferente, desintegra o Personagem. |
+| 4 | XXXIV | Fuga | O Personagem se joga na câmara de \mathbf{XXI} (xampu anti-gravidade) e flutua para longe do perigo, gravemente ferido, com o cabelo perfeito. |
+| 5 | XXXV | Vitória | O grito final do vilão quebra o bule do Golem de Café (\mathbf{XII}); o golem desmorona sobre o Chefão, selando-o em um casulo de grãos frios. |
+| 6 | XXXVI | Derrota | O Zumbi \mathbf{XXX} se ofende com o baixo QI do Personagem e o classifica como "sub-alimento", jogando-o na lama tóxica (\mathbf{XIII}) para decomposição. |
+| 7 | XXXVII | Empate | A luta atinge um impasse perfeito. O Chefão elogia a bravura do Personagem, oferece uma trégua temporária e se retira, sugerindo um duelo futuro mais desafiador. |
+| 8 | XXXVIII | Fuga | A Valquíria de Cafeína (\mathbf{XXVIII}), em crise de abstinência, confunde o Personagem com um copo gigante. Ela o agarra e foge em busca de um latte. |
+| 9 | XXXIX | Vitória | O Personagem, em um ato de desespero final, manifesta uma nova e poderosa habilidade que estava latente, destruindo o Chefão com um único golpe épico. |
+| 10 | XL | Derrota | O Chefão usa a fraqueza mais profunda do Personagem (medo, juramento, dilema moral \mathbf{I}), forçando-o a se sacrificar ou a paralisar antes da morte. |
+| 11 | XLI | Empate | O Professor Zumbi (\mathbf{XX}), insatisfeito com a gramática do Chefão, inicia uma perseguição didática. O vilão foge gritando e aterrorizado pela ortografia. |
+| 12 | XLII | Fuga | O Cão de Caça Fantasma (\mathbf{XVII}) fareja o cheiro do osso perdido no bolso do Personagem e o carrega para a segurança antes do golpe fatal. |
+| 13 | XLIII | Vitória | O Personagem convence o Chefão (Minotauro Contador \mathbf{XV}) de que a anarquia mágica gera impostos insustentáveis. O vilão morre de tédio fiscal. |
+| 14 | XLIV | Derrota | O Personagem é tragicamente traído por um aliado (ou pelo Golem \mathbf{XII}), permitindo que o Chefão execute o golpe mortal. |
+| 15 | XLV | Empate | O Chefão recebe uma convocação urgente de um superior ou de um "cliente" (o Mercador de Almas \mathbf{XIX}) e decide adiar a morte do Personagem para outra hora. |
+| 16 | XLVI | Fuga | O Faraó \mathbf{IV} liga para o Chefão, perguntando se ele viu seus \mathbf{XXIX} (servos). O vilão, distraído, permite a fuga do Personagem ferido. |
+| 17 | XLVII | Vitória | Uma fúria estética explode: o Personagem invoca o poder da surpresa genuína (pagamento \mathbf{XIX}), transformando o Chefão em uma estátua de sal. |
+| 18 | XLVIII | Derrota | O Personagem é absorvido pelo Cenário e se torna parte da ameaça ou da maldição (o Vidro \mathbf{XV}), sendo permanentemente removido da campanha. |
+| 19 | XLIX | Empate | O combate destrói a padaria (\mathbf{XXII}), libertando os pães de gengibre. O Chefão usa um bolo de frutas como escudo e desaparece no vapor. |
+| 20 | L | Fuga | O Personagem ativa uma armadilha ou dispositivo de autodestruição do Cenário ( \mathbf{XI} a \mathbf{XXX}), forçando uma retirada rápida e caótica. |</p>
+
+
+
+<script>
+/* =========================
+   ESTADO DOS PERSONAGENS
+========================= */
+let characterPanels = {
+    panel0: { nivel:1, forca:1, velocidade:1, defesa:1, cardId:null },
+    panel1: { nivel:1, forca:1, velocidade:1, defesa:1, cardId:null },
+    panel2: { nivel:1, forca:1, velocidade:1, defesa:1, cardId:null },
+    panel3: { nivel:1, forca:1, velocidade:1, defesa:1, cardId:null }
+};
+
+const cardHolder = document.getElementById("current-card");
+const panelsContainer = document.getElementById("panels-container");
+const CARD_BASE_PATH = "./";
+
+/* =========================
+        DADOS
+========================= */
+function rollDice(sides){
+    let r = Math.floor(Math.random()*sides)+1;
+    document.getElementById("dice-result").innerText = `Resultado: d${sides} = ${r}`;
+}
+
+/* =========================
+      CRIAÇÃO PAINÉIS
+========================= */
+function createPanels(){
+    panelsContainer.innerHTML = "";
+    Object.keys(characterPanels).forEach((key,i)=>{
+        let p = document.createElement("div");
+        p.className="panel";
+        p.id=key;
+
+        p.innerHTML = `
+            <h3 style="font-weight:700;font-size:18px;margin-bottom:8px;color:#a5b4fc;">Painel ${i+1}</h3>
+            <div id="zone-${i}" class="drop-zone">Arraste a Carta Aqui</div>
+            ${renderStats(key)}
+        `;
+
+        panelsContainer.appendChild(p);
+
+        let zone = document.getElementById(`zone-${i}`);
+        zone.addEventListener("dragover", e=>e.preventDefault());
+        zone.addEventListener("drop", e => {
+            let cid = e.dataTransfer.getData("text");
+            applyCardToPanel(key, cid);
+        });
+    });
+}
+
+function renderStats(panel){
+    return ["nivel","forca","velocidade","defesa"].map(stat=>`
+        <div class="stat-control">
+            <span>${stat}:</span>
+            <div class="stat-buttons">
+                <button class="minus" onclick="adjustStat('${panel}','${stat}',-1)">-</button>
+                <span class="stat-value" id="${panel}-${stat}">${characterPanels[panel][stat]}</span>
+                <button class="plus" onclick="adjustStat('${panel}','${stat}',1)">+</button>
+            </div>
+        </div>
+    `).join("") + `
+        <p style="font-size:12px;margin-top:6px;text-align:right;">
+            Card: <span id="${panel}-card-id">${characterPanels[panel].cardId ?? "Nenhum"}</span>
+        </p>
+    `;
+}
+
+function adjustStat(panel, stat, val){
+    characterPanels[panel][stat] = Math.max(1, characterPanels[panel][stat] + val);
+    document.getElementById(`${panel}-${stat}`).innerText = characterPanels[panel][stat];
+}
+
+/* =========================
+        SORTEAR CARTA
+========================= */
+function drawCard(){
+    let id = Math.floor(Math.random()*20)+1;
+    let src = `${CARD_BASE_PATH}${id}.jpg`;
+
+    cardHolder.innerHTML = `
+        <img src="${src}" draggable="true" data-id="${id}" 
+             class="card-draggable"
+             ondragstart="event.dataTransfer.setData('text', '${id}')">
+    `;
+}
+
+/* =========================
+      APLICAR CARTA
+========================= */
+function applyCardToPanel(panel, cardId){
+    characterPanels[panel].cardId = cardId;
+    document.getElementById(`${panel}-card-id`).innerText = cardId;
+
+    let index = panel.replace("panel","");
+    let zone = document.getElementById(`zone-${index}`);
+    zone.innerHTML = `<img src="${CARD_BASE_PATH}${cardId}.jpg">`;
+
+    cardHolder.innerHTML = "Carta em uso. Sorteie outra.";
+}
+
+/* =========================
+      INICIALIZAÇÃO
+========================= */
+window.onload = createPanels;
+</script>
+</body>
+</html>

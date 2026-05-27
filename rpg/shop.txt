@@ -1,0 +1,99 @@
+O problema com a regeneração de Life (Vida) e Stamina (Vigor) é que as funções de regeneração estão configuradas para rodar em intervalos de tempo muito longos ou em um contexto onde a execução pode ser pausada (como abas de navegador inativas).
+🧐 Análise do Código
+1. Regeneração de Stamina
+A função startStaminaRegen() está configurada para regenerar 1% de Stamina a cada 60.000 milissegundos (1 minuto):
+function startStaminaRegen() {
+    setInterval(() => {
+        if (character.stamina < 100) {
+            character.stamina = Math.min(100, character.stamina + 1); // +1% a cada minuto
+            document.getElementById('stamina-value').textContent = Math.round(character.stamina);
+        }
+    }, 60000); // 1 minuto
+}
+
+ * Problema: Se você acabou de carregar a ficha, precisará esperar 1 minuto inteiro para ver o primeiro aumento de 1%. Você notará o aumento, mas ele é lento.
+2. Regeneração de Life
+A função startLifeRegen() está configurada para regenerar 1 ponto de Vida a cada 600.000 milissegundos (10 minutos):
+function startLifeRegen() {
+    setInterval(() => {
+        if (character.life < character.maxLife) {
+            character.life = Math.min(character.maxLife, character.life + 1);
+            logAction(`❤️ Regeneração: +1 Life. Total: ${character.life}/${character.maxLife}`, 'info');
+            renderResources();
+        }
+    }, 600000); // 10 minutos (10 * 60 * 1000)
+}
+
+ * Problema: Você precisará esperar 10 minutos inteiros para ver o primeiro aumento de 1 ponto de Vida no log ou na barra. Isso é muito demorado, dando a impressão de que não está funcionando.
+🛠️ Sugestões de Correção/Ajuste
+Para ver a regeneração funcionar de forma mais perceptível em testes, você pode diminuir o intervalo para algo mais rápido (por exemplo, 5 segundos para Stamina e 30 segundos para Life).
+Ajuste de Intervalo (Apenas para Teste)
+Modifique os tempos de setInterval:
+// Para Stamina: 1% a cada 5 segundos (300000 ms) - Mudar 60000 para 5000
+function startStaminaRegen() {
+    setInterval(() => {
+        // ... (código existente)
+    }, 5000); // 5 segundos
+}
+
+// Para Life: 1 ponto a cada 30 segundos (30000 ms) - Mudar 600000 para 30000
+function startLifeRegen() {
+    setInterval(() => {
+        // ... (código existente)
+    }, 30000); // 30 segundos
+}
+
+ * Aviso: Mantenha os valores originais (60000 e 600000) se você quiser uma regeneração lenta, como em um RPG. Os ajustes acima são para verificação rápida do funcionamento.
+🛒 Adicionando Item de Stamina ao Shopping
+Para atender ao seu pedido de adicionar um item de Stamina, adicione o novo item ao objeto SHOP_ITEMS e à tabela HTML do painel de compras.
+1. Adicionar ao Objeto SHOP_ITEMS (dentro da tag <script>):
+const SHOP_ITEMS = {
+    // ... (itens existentes)
+    'portal': { name: 'Portal', cost: 200, effect: { info: "Item de Teleporte Rápido", inventory: true } },
+    // **NOVO ITEM DE STAMINA:**
+    'staminaPotion': { name: 'Poção de Vigor', cost: 25, effect: { stamina: 100 } } // Preenche 100% de Stamina
+};
+
+2. Adicionar o item à Tabela de Compras (no HTML):
+Adicione uma nova linha na seção Painel Shopping (<table>):
+        <table>
+            <tr class="header-row">
+                </tr>
+            <tr>
+                <td>Portal</td>
+                <td>200</td>
+                <td>Item de Teleporte Rápido</td>
+                <td><button onclick="buyItem('portal')">Comprar</button></td>
+            </tr>
+            <tr>
+                <td>Poção de Vigor</td>
+                <td>25</td>
+                <td>+100% Stamina</td>
+                <td><button onclick="buyItem('staminaPotion')">Comprar</button></td>
+            </tr>
+        </table>
+
+3. Implementar a Lógica do Item de Stamina na Função buyItem():
+A função buyItem() já está preparada para lidar com novos efeitos. Adicione esta verificação no bloco if (item.effect.mana) { ... }:
+        function buyItem(itemKey) {
+            // ... (verifica custo e moeda)
+
+            if (item.effect.life) {
+                character.life = Math.min(character.maxLife, character.life + item.effect.life);
+            }
+            if (item.effect.mana) {
+                character.mana += item.effect.mana;
+            }
+            // **NOVA LÓGICA DE STAMINA**
+            if (item.effect.stamina) {
+                character.stamina = Math.min(100, character.stamina + item.effect.stamina);
+            }
+            if (item.effect.xp) {
+                changeResource('xp', item.effect.xp);
+            }
+            
+            // ... (log de sucesso e renderAll)
+        }
+
+Dessa forma, a Poção de Vigor custará 25 moedas e recarregará 100% de Stamina (limitada a 100%).
+Gostaria que eu fizesse esses ajustes diretamente no seu código, ou você prefere aplicar as alterações de intervalo de tempo (para teste) e a Poção de Vigor (shopping) por conta própria?

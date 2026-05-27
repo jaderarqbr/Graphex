@@ -1,0 +1,918 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha GURPS Interativa</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .ficha-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 5px;
+            text-align: left;
+        }
+        .header-row td, .header-row th {
+            padding: 10px;
+            background-color: #eee;
+            font-weight: bold;
+        }
+        .ball-container {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .ball {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1px solid #333;
+            background-color: white; /* Cor da bola "branca" (vazia) */
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .ball.filled {
+            background-color: red; /* Cor da bola "vermelha" (preenchida) */
+        }
+        .ball-controls {
+            display: flex;
+            gap: 5px;
+            margin-left: 10px;
+        }
+        .ball-controls button {
+            cursor: pointer;
+            padding: 2px 6px;
+        }
+        input[type="text"], input[type="number"], textarea, select {
+            width: calc(100% - 10px);
+            padding: 3px;
+        }
+        .life-bar {
+            background-color: #ddd;
+            height: 20px;
+            width: 100%;
+        }
+        .life-fill {
+            height: 100%;
+            background-color: green;
+            transition: width 0.3s;
+        }
+        .sidebar {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+        }
+        .log-panel {
+            margin-top: 20px;
+            border: 1px solid #aaa;
+            padding: 10px;
+            background-color: #fff;
+            min-height: 150px;
+            overflow-y: scroll;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .action-buttons button {
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="ficha-container">
+        <table>
+            <tr class="header-row">
+                <td>Nacionalidade/Natureza/Idade:</td>
+                <td>Jogador/Comportamento/Sexo:</td>
+                <td>Crônicas/Conceito:</td>
+            </tr>
+            <tr>
+                <td><input type="text" id="nacionalidade"><button onclick="save('nacionalidade')">Salvar</button></td>
+                <td><input type="text" id="jogador"><button onclick="save('jogador')">Salvar</button></td>
+                <td><input type="text" id="cronicas"><button onclick="save('cronicas')">Salvar</button></td>
+            </tr>
+        </table>
+
+        <div class="sidebar">
+            <h3>📊 Recursos do Personagem (Nível: <span id="level-display">1</span>)</h3>
+            <table>
+                <tr>
+                    <th>Moeda (💰)</th>
+                    <th>Life (❤️)</th>
+                    <th>Experiência (XP)</th>
+                    <th>Maná (✨)</th>
+                    <th>Stamina (⚡)</th>
+                </tr>
+                <tr>
+                    <td><span id="currency-value">0</span> <button onclick="changeResource('currency', 10)">+</button> <button onclick="changeResource('currency', -10)">-</button></td>
+                    <td><span id="life-value">10</span>/<span id="life-max">10</span></td>
+                    <td><span id="xp-value">0</span> <button onclick="changeResource('xp', 50)">+XP</button> <button onclick="changeResource('xp', -5)">-XP</button></td>
+                    <td><span id="mana-value">10</span> <button onclick="changeResource('mana', 1)">+Maná</button> <button onclick="changeResource('mana', -1)">-Maná</button></td>
+                    <td><span id="stamina-value">100</span>%</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="sidebar">
+            <h3>🎯 Status do Inimigo: <span id="enemy-name-display">Goblin</span></h3>
+            <table>
+                <tr class="header-row">
+                    <th>Vida Atual (❤️)</th>
+                    <th>Armadura (🛡️)</th>
+                    <th></th>
+                </tr>
+                <tr>
+                    <td><span id="enemy-life-value">20</span>/<span id="enemy-life-max">20</span></td>
+                    <td><input type="number" id="enemy-armor-value" value="0" onchange="saveEnemyStatus()"></td>
+                    <td><button onclick="promptEnemyName()">Mudar Inimigo</button></td>
+                </tr>
+            </table>
+        </div>
+        <table>
+            <tr class="header-row"><td colspan="2">Atributos</td></tr>
+            <tr>
+                <th>Força</th>
+                <td id="attr-Força" class="attribute-row"></td>
+            </tr>
+            <tr>
+                <th>Carisma</th>
+                <td id="attr-Carisma" class="attribute-row"></td>
+            </tr>
+            <tr>
+                <th>Percepção</th>
+                <td id="attr-Percepção" class="attribute-row"></td>
+            </tr>
+            <tr>
+                <th>Destreza</th>
+                <td id="attr-Destreza" class="attribute-row"></td>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+                <th>TOTAL DE PONTOS (ATRIBUTOS)</th>
+                <td id="total-attribute-points" style="font-weight: bold;">0</td>
+            </tr>
+        </table>
+
+        <table>
+            <tr class="header-row"><td colspan="2">Perícias</td></tr>
+            <tr>
+                <th>Representação</th>
+                <td id="skill-Representação" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Habilidade</th>
+                <td id="skill-Habilidade" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Prontidão</th>
+                <td id="skill-Prontidão" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Esportes</th>
+                <td id="skill-Esportes" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Esquiva</th>
+                <td id="skill-Esquiva" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Empatia</th>
+                <td id="skill-Empatia" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Liderança</th>
+                <td id="skill-Liderança" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Perícias Conhecimentos Empatia c/ Animais</th>
+                <td id="skill-Perícias Conhecimentos Empatia c/ Animais" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Instrução</th>
+                <td id="skill-Instrução" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Arqueirismo</th>
+                <td id="skill-Arqueirismo" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Sabedoria Popular</th>
+                <td id="skill-Sabedoria Popular" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Artesanato</th>
+                <td id="skill-Artesanato" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Investigação</th>
+                <td id="skill-Investigação" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Etiqueta</th>
+                <td id="skill-Etiqueta" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Direito</th>
+                <td id="skill-Direito" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Herborismo</th>
+                <td id="skill-Herborismo" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Lingüística</th>
+                <td id="skill-Lingüística" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Armas Brancas</th>
+                <td id="skill-Armas Brancas" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Medicina</th>
+                <td id="skill-Medicina" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Música</th>
+                <td id="skill-Música" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Ocultismo</th>
+                <td id="skill-Ocultismo" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Cavalgar</th>
+                <td id="skill-Cavalgar" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Política</th>
+                <td id="skill-Política" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Furtividade</th>
+                <td id="skill-Furtividade" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Ciência</th>
+                <td id="skill-Ciência" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Sobrevivência</th>
+                <td id="skill-Sobrevivência" class="skill-row"></td>
+            </tr>
+            <tr>
+                <th>Senescalia</th>
+                <td id="skill-Senescalia" class="skill-row"></td>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+                <th>TOTAL DE PONTOS (PERÍCIAS)</th>
+                <td id="total-skill-points" style="font-weight: bold;">0</td>
+            </tr>
+        </table>
+
+        <table>
+            <tr class="header-row"><td>Vitalidade (❤️)</td><td>Escoriado/Ferido Gravemente/Incapacitado</td></tr>
+            <tr>
+                <td>
+                    <div class="life-bar"><div id="life-bar-fill" class="life-fill" style="width: 100%;"></div></div>
+                </td>
+                <td>
+                    <select id="damage-status" onchange="updateLife(this.value)">
+                        <option value="0">Escoriado</option>
+                        <option value="1">Ferido Leve</option>
+                        <option value="2">Ferido Gravemente</option>
+                        <option value="3">Incapacitado</option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+
+        <table>
+            <tr class="header-row"><td>Arma / Proteção</td><th>Dificuldade (Teste $\le$ X)</th><th>Dano Base (ST + Arma)</th><td>Defeitos e Vantagens</td></tr>
+            <tr>
+                <td>
+                    <select id="equipment-select" onchange="selectEquipment()">
+                        <option value="">-- Selecione Equipamento --</option>
+                        </select>
+                    <button onclick="addEquipment()">+ Adicionar Arma</button>
+                </td>
+                <td><input type="number" id="eq-diff" placeholder="Ex: 6"></td>
+                <td><input type="number" id="eq-damage" placeholder="Ex: 5"></td>
+                <td rowspan="2"><textarea id="defects-advantages" maxlength="2000" rows="5"></textarea></td>
+            </tr>
+            <tr>
+                <th>CA Pessoal (Armadura)</th>
+                <td colspan="2">
+                    <span id="armor-ca-value">0</span> 
+                    <button onclick="changeArmorCA(1)">+</button>
+                    <button onclick="changeArmorCA(-1)">-</button>
+                </td>
+            </tr>
+        </table>
+
+        <hr>
+        <h3>🛒 Painel Shopping</h3>
+        <table>
+            <tr class="header-row">
+                <th>Item</th>
+                <th>Custo (💰)</th>
+                <th>Efeito</th>
+                <th>Ação</th>
+            </tr>
+            <tr>
+                <td>Poção de Cura</td>
+                <td>50</td>
+                <td>+5 Life (até o máximo)</td>
+                <td><button onclick="buyItem('lifePotion')">Comprar</button></td>
+            </tr>
+            <tr>
+                <td>Poção de Maná</td>
+                <td>40</td>
+                <td>+5 Maná</td>
+                <td><button onclick="buyItem('manaPotion')">Comprar</button></td>
+            </tr>
+            <tr>
+                <td>Pergaminho</td>
+                <td>100</td>
+                <td>+50 XP (pode causar Nível Up)</td>
+                <td><button onclick="buyItem('scroll')">Comprar</button></td>
+            </tr>
+            <tr>
+                <td>Portal</td>
+                <td>200</td>
+                <td>Item de Teleporte Rápido</td>
+                <td><button onclick="buyItem('portal')">Comprar</button></td>
+            </tr>
+            <tr>
+                <td>Poção de Vigor</td>
+                <td>25</td>
+                <td>+100% Stamina</td>
+                <td><button onclick="buyItem('staminaPotion')">Comprar</button></td>
+            </tr>
+        </table>
+        <hr>
+
+        <h3>⚔️ Painel de Ações e Log</h3>
+        <div class="action-buttons">
+            <button onclick="performAction('Atacar', 10)">Atacar</button>
+            <button onclick="performAction('Defender', 5)">Defender</button>
+            <button onclick="performAction('Fugir', 10)">Fugir</button>
+            <button onclick="performAction('Briga', 8)">Briga</button>
+            <button onclick="performAction('Intimidação', 5)">Intimidação</button>
+            <button onclick="performAction('Crime', 15)">Crime</button>
+        </div>
+        
+        <h4>Log de Atos:</h4>
+        <div id="log-panel" class="log-panel">
+            </div>
+
+        <h4>Estatísticas de Sucesso/Fracasso:</h4>
+        <div id="status-card">
+            </div>
+
+        <button onclick="clearFicha()">Limpar Ficha</button>
+        <button onclick="saveFicha()">Salvar Ficha</button>
+        <button onclick="loadFicha()">Carregar Ficha</button>
+
+    </div>
+
+    <script>
+        const ATTRIBUTE_MAX = 45;
+        const SKILL_MAX = 320;
+        const INITIAL_LEVEL = 1;
+        
+        let character = {
+            level: INITIAL_LEVEL,
+            xp: 0,
+            currency: 0,
+            mana: 10,
+            life: 10,
+            maxLife: 10,
+            stamina: 100,
+            actionStats: {},
+            attributes: {},
+            skills: {},
+            equipment: {}, // Novo: Para armazenar armas e danos
+            armorCA: 0,    // Novo: Para armazenar CA do Personagem
+            enemy: {       // Novo: Para rastrear status do Inimigo
+                name: "Goblin",
+                life: 20,
+                maxLife: 20,
+                armor: 0
+            }
+        };
+
+        const LEVEL_XP_REQUIREMENT = { 1: 0, 2: 100, 3: 400, 4: 800, 5: 1300 };
+        const SHOP_ITEMS = {
+            'lifePotion': { name: 'Poção de Cura', cost: 50, effect: { life: 5 } },
+            'manaPotion': { name: 'Poção de Maná', cost: 40, effect: { mana: 5 } },
+            'scroll': { name: 'Pergaminho', cost: 100, effect: { xp: 50 } },
+   'portal': { name: 'Portal', cost: 200, effect: { info: "Item de Teleporte Rápido", inventory: true } },
+    // **NOVO ITEM DE STAMINA:**
+    'staminaPotion': { name: 'Poção de Vigor', cost: 25, effect: { stamina: 100 } } // Preenche 100% de Stamina
+};
+
+        // --- FUNÇÕES GERAIS ---
+
+        function rollDice(sides = 6) {
+            return Math.floor(Math.random() * sides) + 1;
+        }
+
+        // --- FUNÇÕES DE LÓGICA DE BOLAS E NÍVEL ---
+
+        function getPointsPerLevel(type, level) {
+            if (type === 'attribute') {
+                return 10 + (level * 5); 
+            }
+            if (type === 'skill') {
+                return 70 + (level * 10);
+            }
+            return 0;
+        }
+        
+        function calculateTotalPoints(type) {
+            const data = type === 'attribute' ? character.attributes : character.skills;
+            let total = 0;
+            for (const key in data) {
+                if (data.hasOwnProperty(key)) {
+                    total += data[key];
+                }
+            }
+            return total;
+        }
+
+        function renderBalls(id, type, containerElement) {
+            containerElement.innerHTML = '';
+            const maxPoints = type === 'attribute' ? ATTRIBUTE_MAX : SKILL_MAX;
+            const currentPoints = type === 'attribute' ? (character.attributes[id] || 0) : (character.skills[id] || 0);
+            const levelCap = getPointsPerLevel(type, character.level);
+            
+            const controls = document.createElement('div');
+            controls.className = 'ball-controls';
+            controls.innerHTML = `
+                <button onclick="changePoints('${id}', '${type}', 1)">+</button>
+                <button onclick="changePoints('${id}', '${type}', -1)">-</button>
+            `;
+            
+            const pointDisplay = document.createElement('span');
+            pointDisplay.id = `${id}-points`;
+            pointDisplay.textContent = `${currentPoints}/${levelCap}`;
+            controls.prepend(pointDisplay);
+
+            const ballContainer = document.createElement('div');
+            ballContainer.className = 'ball-container';
+
+            for (let i = 0; i < maxPoints; i++) {
+                const ball = document.createElement('div');
+                ball.className = 'ball';
+                if (i < currentPoints) {
+                    ball.classList.add('filled');
+                }
+                if (i >= levelCap) {
+                    ball.style.opacity = 0.3;
+                }
+                ballContainer.appendChild(ball);
+            }
+
+            containerElement.appendChild(controls);
+            containerElement.appendChild(ballContainer);
+        }
+
+        function changePoints(id, type, amount) {
+            let currentPoints;
+            const maxPoints = type === 'attribute' ? ATTRIBUTE_MAX : SKILL_MAX;
+            
+            if (type === 'attribute') {
+                currentPoints = character.attributes[id] = (character.attributes[id] || 0) + amount;
+                character.attributes[id] = Math.max(0, Math.min(currentPoints, maxPoints));
+            } else {
+                currentPoints = character.skills[id] = (character.skills[id] || 0) + amount;
+                character.skills[id] = Math.max(0, Math.min(currentPoints, maxPoints));
+            }
+            
+            const levelCap = getPointsPerLevel(type, character.level);
+            if (character.attributes[id] > levelCap && type === 'attribute') {
+                 logAction(`Limite de Nível: ${id} atingiu o máximo de ${levelCap} para o Nível ${character.level}.`, 'warning');
+                 character.attributes[id] = levelCap;
+            }
+            if (character.skills[id] > levelCap && type === 'skill') {
+                 logAction(`Limite de Nível: ${id} atingiu o máximo de ${levelCap} para o Nível ${character.level}.`, 'warning');
+                 character.skills[id] = levelCap;
+            }
+
+            renderAll();
+        }
+
+        // --- FUNÇÕES DE RECURSOS E NÍVEL ---
+
+        function checkLevelUp() {
+            let newLevel = character.level;
+            for (let level in LEVEL_XP_REQUIREMENT) {
+                if (character.xp >= LEVEL_XP_REQUIREMENT[level]) {
+                    newLevel = parseInt(level);
+                }
+            }
+            
+            if (newLevel > character.level) {
+                logAction(`🥳 **SUBIU DE NÍVEL!** O personagem alcançou o Nível ${newLevel}.`, 'success');
+                character.level = newLevel;
+            }
+        }
+        
+        function changeResource(resource, amount) {
+            character[resource] += amount;
+            
+            if (resource === 'xp') {
+                character.xp = Math.max(0, character.xp);
+                checkLevelUp();
+            }
+            if (resource === 'currency') {
+                character.currency = Math.max(0, character.currency);
+            }
+            if (resource === 'mana') {
+                character.mana = Math.max(0, character.mana);
+            }
+            
+            renderAll();
+        }
+
+        function updateLife(damageStatusIndex) {
+            const maxLife = 10; 
+            let currentLife = maxLife;
+            
+            switch(damageStatusIndex) {
+                case '0':
+                    currentLife = maxLife;
+                    break;
+                case '1':
+                    currentLife = Math.round(maxLife * 0.7);
+                    break;
+                case '2':
+                    currentLife = Math.round(maxLife * 0.3);
+                    break;
+                case '3':
+                    currentLife = 0;
+                    break;
+            }
+            
+            character.life = currentLife;
+            renderAll();
+            logAction(`Status de Dano alterado para: ${document.getElementById('damage-status').options[damageStatusIndex].text}. Vida atual: ${currentLife}/${maxLife}.`, 'info');
+        }
+
+        // --- FUNÇÕES DE INIMIGO E CA ---
+
+        function promptEnemyName() {
+            const newName = prompt("Nome do Inimigo:");
+            if (newName) {
+                character.enemy.name = newName;
+            }
+            const newLife = prompt(`Vida Máxima de ${character.enemy.name} (ex: 20):`);
+            if (newLife && !isNaN(parseInt(newLife))) {
+                character.enemy.life = parseInt(newLife);
+                character.enemy.maxLife = parseInt(newLife);
+            }
+            renderEnemyStatus();
+            saveFicha();
+        }
+
+        function saveEnemyStatus() {
+            character.enemy.armor = parseInt(document.getElementById('enemy-armor-value').value) || 0;
+            saveFicha();
+        }
+
+        function changeArmorCA(amount) {
+            character.armorCA = Math.max(0, character.armorCA + amount);
+            renderAll();
+            logAction(`CA Pessoal alterado para ${character.armorCA}.`, 'info');
+        }
+        
+        // --- FUNÇÕES DE EQUIPAMENTO ---
+        
+        function addEquipment() {
+            const name = prompt("Nome da arma/proteção:");
+            if (!name) return;
+
+            let damage = 0;
+            let damageStr = prompt(`Qual o Dano Base desta arma (ex: 5)?`);
+            if (damageStr && !isNaN(parseInt(damageStr))) {
+                damage = parseInt(damageStr);
+            }
+            
+            // Armazena no objeto character
+            character.equipment[name] = { damage: damage };
+
+            // Atualiza o select dropdown
+            const select = document.getElementById('equipment-select');
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+            select.value = name;
+            
+            selectEquipment(); // Aplica os novos valores
+            logAction(`Equipamento **${name}** (Dano Base: ${damage}) adicionado.`, 'info');
+        }
+
+        function selectEquipment() {
+            const selectedName = document.getElementById('equipment-select').value;
+            const diffInput = document.getElementById('eq-diff');
+            const damageInput = document.getElementById('eq-damage');
+            
+            if (selectedName && character.equipment[selectedName]) {
+                const item = character.equipment[selectedName];
+                // Manter a Dificuldade e Dano como campos de input manual para o Mestre/Jogador definir o teste final.
+                // Apenas preenche o Dano Base se for uma nova arma selecionada.
+                damageInput.value = item.damage;
+            } else {
+                damageInput.value = '';
+                diffInput.value = '';
+            }
+            saveFicha();
+        }
+
+        // --- FUNÇÕES DE COMPRA ---
+
+        function buyItem(itemKey) {
+            const item = SHOP_ITEMS[itemKey];
+            if (!item || character.currency < item.cost) {
+                logAction(`Compra falhou: Moedas insuficientes ou item desconhecido.`, 'failure');
+                return;
+            }
+
+            character.currency -= item.cost;
+
+            if (item.effect.life) {
+                character.life = Math.min(character.maxLife, character.life + item.effect.life);
+            }
+            if (item.effect.mana) {
+                character.mana += item.effect.mana;
+            }
+            // **NOVA LÓGICA DE STAMINA**
+            if (item.effect.stamina) {
+                character.stamina = Math.min(100, character.stamina + item.effect.stamina);
+            }
+            if (item.effect.xp) {
+                changeResource('xp', item.effect.xp);
+            }
+            
+            logAction(`💰 Compra de **${item.name}** por ${item.cost} moedas realizada com sucesso.`, 'success');
+            renderAll();
+        }
+
+        // --- FUNÇÕES DE AÇÃO E LOG (COMBATE ATUALIZADO) ---
+
+        function performAction(actionName, staminaCost) {
+            if (character.stamina < staminaCost) {
+                logAction(`Ação falhou: Pouca Stamina para ${actionName}. Custo: ${staminaCost}%.`, 'failure');
+                return;
+            }
+            
+            character.stamina -= staminaCost;
+            
+            // 1. Define o Limite de Sucesso (Threshold)
+            const difficultyValue = parseInt(document.getElementById('eq-diff').value);
+            // Usa o valor da Dificuldade (definida pelo Mestre/Jogador) ou 10 como fallback.
+            const successThreshold = difficultyValue || 10; 
+            
+            // 2. Primeira Rolagem (3d6)
+            const diceRoll = rollDice(6) + rollDice(6) + rollDice(6);
+            const success = diceRoll <= successThreshold;
+            
+            let message = `Tentativa de **${actionName}**. Teste (3d6): **${diceRoll}** (Sucesso $\le$ ${successThreshold}). `;
+            
+            if (success) {
+                if (actionName === 'Atacar') {
+                    const baseDamage = parseInt(document.getElementById('eq-damage').value) || 0;
+                    
+                    // Segunda Rolagem (1d6 para o Dano)
+                    const damageRoll = rollDice(6); 
+                    const totalDamage = baseDamage + damageRoll;
+                    
+                    // Aplica Dano ao Inimigo
+                    character.enemy.life = Math.max(0, character.enemy.life - totalDamage);
+                    
+                    message += `🎉 **ACERTO CRÍTICO!** Dano Base (${baseDamage}) + 1d6 (${damageRoll}) = **${totalDamage}**. O inimigo ${character.enemy.name} agora tem **${character.enemy.life}** de Vida.`;
+                    changeResource('xp', 10);
+                    changeResource('currency', 5);
+                } else {
+                    // Sucesso em ações que não causam dano (Defender, Fugir, etc)
+                    message += `🎉 **SUCESSO!** O personagem ganha +10 XP e +5 Moedas.`;
+                    changeResource('xp', 10);
+                    changeResource('currency', 5);
+                }
+
+                character.actionStats[actionName] = { 
+                    success: (character.actionStats[actionName]?.success || 0) + 1, 
+                    failure: (character.actionStats[actionName]?.failure || 0) 
+                };
+            } else {
+                message += `❌ **FRACASSO!** Perde 1 de Life/Mana.`;
+                character.life = Math.max(0, character.life - 1);
+                character.actionStats[actionName] = { 
+                    success: (character.actionStats[actionName]?.success || 0), 
+                    failure: (character.actionStats[actionName]?.failure || 0) + 1 
+                };
+            }
+            
+            logAction(message, success ? 'success' : 'failure');
+            renderAll();
+        }
+
+        function logAction(message, type) {
+            const logPanel = document.getElementById('log-panel');
+            const entry = document.createElement('p');
+            entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            if (type === 'success') entry.style.color = 'darkgreen';
+            if (type === 'failure') entry.style.color = 'darkred';
+            if (type === 'warning') entry.style.color = 'orange';
+            if (type === 'info') entry.style.color = 'blue';
+
+            logPanel.prepend(entry);
+            if (logPanel.children.length > 50) {
+                logPanel.removeChild(logPanel.lastChild);
+            }
+        }
+        
+        // --- FUNÇÕES DE RENDERING E UTILIDADE ---
+
+        function renderEnemyStatus() {
+            document.getElementById('enemy-name-display').textContent = character.enemy.name;
+            document.getElementById('enemy-life-value').textContent = character.enemy.life;
+            document.getElementById('enemy-life-max').textContent = character.enemy.maxLife;
+            document.getElementById('enemy-armor-value').value = character.enemy.armor;
+        }
+
+        function renderResources() {
+            document.getElementById('level-display').textContent = character.level;
+            document.getElementById('currency-value').textContent = character.currency;
+            document.getElementById('xp-value').textContent = character.xp;
+            document.getElementById('mana-value').textContent = character.mana;
+            
+            const lifePercentage = (character.life / character.maxLife) * 100;
+            document.getElementById('life-value').textContent = character.life;
+            document.getElementById('life-max').textContent = character.maxLife;
+            document.getElementById('life-bar-fill').style.width = `${lifePercentage}%`;
+
+            document.getElementById('stamina-value').textContent = Math.round(character.stamina);
+            document.getElementById('armor-ca-value').textContent = character.armorCA; // Novo CA pessoal
+        }
+
+        function renderAll() {
+            renderResources();
+            renderEnemyStatus(); // Novo
+            
+            // Renderiza Atributos
+            const attributeNames = ['Força', 'Carisma', 'Percepção', 'Destreza']; 
+            attributeNames.forEach(name => {
+                const container = document.getElementById(`attr-${name}`);
+                if (container) {
+                    renderBalls(name, 'attribute', container);
+                }
+            });
+
+            document.getElementById('total-attribute-points').textContent = calculateTotalPoints('attribute');
+
+            // Renderiza Perícias
+            const skillNames = ['Representação', 'Habilidade', 'Prontidão', 'Esportes', 'Esquiva', 'Empatia', 'Liderança', 'Perícias Conhecimentos Empatia c/ Animais', 'Instrução', 'Arqueirismo', 'Sabedoria Popular', 'Artesanato', 'Investigação', 'Etiqueta', 'Direito', 'Herborismo', 'Lingüística', 'Armas Brancas', 'Medicina', 'Música', 'Ocultismo', 'Cavalgar', 'Política', 'Furtividade', 'Ciência', 'Sobrevivência', 'Senescalia']; 
+            skillNames.forEach(name => {
+                const container = document.getElementById(`skill-${name}`);
+                if (container) {
+                    renderBalls(name, 'skill', container);
+                }
+            });
+            
+            document.getElementById('total-skill-points').textContent = calculateTotalPoints('skill');
+            
+            // Atualiza o select de Equipamento na renderização
+            const select = document.getElementById('equipment-select');
+            select.innerHTML = '<option value="">-- Selecione Equipamento --</option>';
+            for (const name in character.equipment) {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            }
+            // Não selecionar nada automaticamente, para forçar o input manual se necessário
+            
+            saveFicha();
+        }
+        
+        // --- PERSISTÊNCIA (localStorage) ---
+
+        function save(id) {
+            const element = document.getElementById(id);
+            if (element) {
+                localStorage.setItem(id, element.value);
+            }
+        }
+
+        function load(id) {
+            const element = document.getElementById(id);
+            if (element && localStorage.getItem(id)) {
+                element.value = localStorage.getItem(id);
+            }
+        }
+
+        function saveFicha() {
+            localStorage.setItem('gurpsFicha', JSON.stringify(character));
+            save('nacionalidade');
+            save('jogador');
+            save('cronicas');
+            save('defects-advantages');
+        }
+
+        function loadFicha() {
+            const savedData = localStorage.getItem('gurpsFicha');
+            if (savedData) {
+                // Ao carregar, verifica se o campo equipment existe.
+                const loadedCharacter = JSON.parse(savedData);
+                // Mescla os dados, garantindo que novos campos (enemy, equipment, armorCA) existam se ausentes
+                character = Object.assign(character, loadedCharacter);
+                
+                // Garante que o objeto enemy tenha a estrutura completa
+                if (!character.enemy) {
+                    character.enemy = { name: "Goblin", life: 20, maxLife: 20, armor: 0 };
+                } else {
+                    character.enemy.maxLife = character.enemy.maxLife || 20; // Garante o maxLife se estiver faltando
+                }
+
+                if (!character.equipment) character.equipment = {};
+                if (character.armorCA === undefined) character.armorCA = 0;
+
+                logAction('Estado completo da Ficha carregado do navegador.', 'success');
+            } else {
+                 logAction('Nenhum dado salvo encontrado. Iniciando nova ficha.', 'warning');
+            }
+            
+            load('nacionalidade');
+            load('jogador');
+            load('cronicas');
+            load('defects-advantages');
+
+            renderAll();
+        }
+
+        function clearFicha() {
+            if (confirm("Tem certeza que deseja limpar toda a ficha? Isso apagará todos os dados salvos.")) {
+                localStorage.removeItem('gurpsFicha');
+                localStorage.clear(); 
+                location.reload(); 
+            }
+        }
+
+        // --- REGENERAÇÃO DE RECURSOS ---
+
+        function startStaminaRegen() {
+            setInterval(() => {
+                if (character.stamina < 100) {
+                    character.stamina = Math.min(100, character.stamina + 1); // +1% a cada minuto
+                    document.getElementById('stamina-value').textContent = Math.round(character.stamina);
+                }
+            }, 60000); // 1 minuto
+        }
+
+        function startLifeRegen() {
+            setInterval(() => {
+                if (character.life < character.maxLife) {
+                    character.life = Math.min(character.maxLife, character.life + 1);
+                    logAction(`❤️ Regeneração: +1 Life. Total: ${character.life}/${character.maxLife}`, 'info');
+                    renderResources();
+                }
+            }, 600000); // 10 minutos (10 * 60 * 1000)
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializa a estrutura base de Atributos e Perícias
+            ['Força', 'Carisma', 'Percepção', 'Destreza'].forEach(name => character.attributes[name] = 0);
+            ['Representação', 'Habilidade', 'Prontidão', 'Esportes', 'Esquiva', 'Empatia', 'Liderança', 'Perícias Conhecimentos Empatia c/ Animais', 'Instrução', 'Arqueirismo', 'Sabedoria Popular', 'Artesanato', 'Investigação', 'Etiqueta', 'Direito', 'Herborismo', 'Lingüística', 'Armas Brancas', 'Medicina', 'Música', 'Ocultismo', 'Cavalgar', 'Política', 'Furtividade', 'Ciência', 'Sobrevivência', 'Senescalia'].forEach(name => character.skills[name] = 0);
+
+            loadFicha();
+            startStaminaRegen();
+            startLifeRegen(); 
+        });
+    </script>
+</body>
+</html>
+
