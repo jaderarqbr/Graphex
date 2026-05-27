@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Planta Rápida – Versão Completa com Blocos</title>
+<style>
+:root{--bg:#fafafa;--pane:#f0f2f5;--muted:#666}
+html,body{height:100%;margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg)}
+#toolbar{display:flex;gap:8px;padding:8px;background:var(--pane);border-bottom:1px solid #ddd;align-items:center;flex-wrap:wrap}
+button,select,input[type=color],input[type=number]{padding:6px 8px;border-radius:6px;border:1px solid #cfcfcf;background:white;cursor:pointer}
+#main{display:flex;height:calc(100% - 106px)}
+#sidebar{width:220px;padding:10px;background:#f7f7f9;border-right:1px solid #e0e0e0;overflow:auto}
+#blocks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.block{width:48px;height:48px;object-fit:contain;border-radius:6px;border:1px solid #ddd;cursor:grab;background:transparent}
+#canvasWrap{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow:auto;background:#fff}
+.canvasLayer{position:relative}
+canvas{display:block;border:1px solid #ccc;box-shadow:0 6px 20px rgba(0,0,0,0.06)}
+#statusBar{height:34px;padding:6px 10px;border-top:1px solid #ddd;background:#fafafa;font-size:13px;display:flex;align-items:center;gap:12px}
+.toast{position:fixed;right:18px;bottom:18px;background:rgba(20,20,20,0.9);color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;z-index:9999}
+.floatingTextInput{position:absolute;display:none;z-index:2000}
+.floatingTextInput textarea{min-width:200px;min-height:60px;padding:8px;border-radius:6px;border:1px solid #ccc;resize:vertical}
+.small{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <button onclick="setTool('pencil')">✏️ Lápis</button>
+  <button onclick="setTool('line')">— Linha</button>
+  <button onclick="setTool('rect')">▭ Retângulo</button>
+  <button onclick="setTool('circle')">◯ Círculo</button>
+  <button onclick="setTool('triangle')">△ Triângulo</button>
+  <button onclick="setTool('ellipse')">⬭ Elipse</button>
+  <button id="btnFill" onclick="setTool('fill')">🪣 Balde</button>
+  <button onclick="setTool('hatch')">▨ Hachura</button>
+
+  <label class="small">Padrão</label>
+  <select id="hatchPattern">
+    <option value="H">Horizontais</option><option value="V">Verticais</option>
+    <option value="HV">Cruz H+V</option><option value="D_R">Diagonal 45°</option>
+    <option value="D_L">Diagonal -45°</option><option value="DX">X</option>
+    <option value="dots">Pontos</option><option value="circles">Bolinhas</option>
+  </select>
+
+  <button onclick="setTool('measure')">📏 Cota</button>
+  <button onclick="setTool('text')">🅰️ Texto</button>
+  <button onclick="setTool('eraser')">🩹 Borracha</button>
+
+  <div style="width:12px"></div>
+
+  <button onclick="setTool('selectRect')">🔲 Seleção</button>
+  <button onclick="copySelection()">📋 Copiar</button>
+  <button onclick="cutSelection()">✂️ Recortar</button>
+  <button onclick="pasteSelection()">📥 Colar</button>
+  <button onclick="rotateSelection(90)">🔄 Rotacionar 90°</button>
+  <button onclick="mirrorSelection()">🪞 Espelhar</button>
+
+  <div style="flex:1"></div>
+
+  <label class="small">Cor</label><input id="colorPicker" type="color" value="#000000">
+  <label class="small">Espess.</label><input id="lineWidth" type="number" min="1" value="2" style="width:72px">
+  <label class="small">Linha</label>
+  <select id="lineStyle"><option value="solid">Contínua</option><option value="dashed">Tracejada</option></select>
+  
+  <div style="width:12px"></div>
+  <label class="small">Escala (cm/px)</label>
+  <input id="scaleInput" type="number" min="0.1" step="0.1" value="1" style="width:72px">
+  <label class="small">Unidade</label>
+  <select id="unitSelect">
+      <option value="cm">cm</option>
+      <option value="m">m</option>
+      <option value="mm">mm</option>
+  </select>
+
+  <label class="small">Fonte (pt)</label>
+  <select id="fontSelect">
+      <option value="16">16</option>
+      <option value="20">20</option>
+      <option value="26">26</option>
+  </select>
+  <button onclick="undo()">↶ Desfazer</button>
+  <button onclick="redo()">↷ Refazer</button>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+    <strong>Blocos (arraste p/ canvas)</strong>
+    <div id="blocks"></div>
+    <hr/>
+    <strong>Opções Hachura</strong><br/>
+    <label class="small">Cor de fundo</label>
+    <input id="backgroundHatchColor" type="color" value="#ffffff">
+    <hr/>
+    <strong>Exportar</strong><br/>
+    <button onclick="exportPNG()">💾 PNG</button>
+    <button onclick="clearCanvas()">🧹 Limpar</button>
+    <button onclick="toggleGrid()">📐 Grade ON/OFF</button>
+  </div>
+
+  <div id="canvasWrap">
+    <div class="canvasLayer">
+      <canvas id="mainCanvas" width="1400" height="900"></canvas>
+      <canvas id="overlayCanvas" width="1400" height="900" style="position:absolute;left:0;top:0;"></canvas>
+      <div id="textBox" class="floatingTextInput">
+        <textarea id="textEditor"></textarea>
+        <div style="text-align:right;margin-top:6px">
+          <button onclick="commitText()">OK</button>
+          <button onclick="cancelText()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="statusBar">
+  Ferramenta → <strong id="currentTool">pencil</strong>
+  <div style="flex:1"></div>
+  <div id="coords" class="small">x:0 y:0</div>
+</div>
+
+<div id="toastRoot"></div>
+
+<script>
+const mainCanvas = document.getElementById('mainCanvas');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const mainCtx = mainCanvas.getContext('2d', {alpha:true});
+const overlayCtx = overlayCanvas.getContext('2d', {alpha:true});
+
+const baseCanvas = document.createElement('canvas'); baseCanvas.width = mainCanvas.width; baseCanvas.height = mainCanvas.height;
+const baseCtx = baseCanvas.getContext('2d', {alpha:true});
+
+// UI elements
+const colorPicker = document.getElementById('colorPicker');
+const lineWidthInput = document.getElementById('lineWidth');
+const lineStyleSelect = document.getElementById('lineStyle');
+const hatchPatternSelect = document.getElementById('hatchPattern');
+const backgroundHatchColor = document.getElementById('backgroundHatchColor');
+const currentToolSpan = document.getElementById('currentTool');
+const textBox = document.getElementById('textBox');
+const textEditor = document.getElementById('textEditor');
+
+const scaleInput = document.getElementById('scaleInput'); 
+const unitSelect = document.getElementById('unitSelect'); 
+const fontSelect = document.getElementById('fontSelect'); 
+
+let currentTool = 'pencil';
+let drawing = false;
+let startX = 0, startY = 0;
+let lastX = 0, lastY = 0;
+let undoStack = [], redoStack = [], MAX_UNDO = 80;
+let selectionRect = null; 
+let copiedImageData = null; 
+let objects = []; 
+let selectedObject = null; 
+let copiedObject = null; 
+let isDraggingSelection = false, selectionOffset = {x:0,y:0};
+
+let lastMouse = {x:0,y:0};
+// Variável de controle da Grade
+let isGridVisible = false;
+const GRID_SIZE = 50; 
+
+function pushUndo(){
+  try{
+    undoStack.push(baseCanvas.toDataURL());
+    if (undoStack.length>MAX_UNDO) undoStack.shift();
+    redoStack = [];
+  }catch(e){ console.warn(e); }
+}
+function saveInitial(){ pushUndo(); redrawAll(); }
+saveInitial();
+
+/* ================
+   Helpers: toast
+   ================ */
+function showToast(msg, t=1800){
+  const el = document.createElement('div');
+  el.className = 'toast'; el.innerText = msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), t);
+}
+
+/* =================
+   Draw pipeline
+   ================= */
+// Função para desenhar o Grid (cor ligeiramente escurecida)
+function drawGrid(ctx){
+  ctx.save();
+  ctx.strokeStyle = '#bbddff'; // Cor mais visível
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  // Linhas verticais
+  for (let x=0; x<mainCanvas.width; x+=GRID_SIZE) {
+    ctx.moveTo(x, 0); ctx.lineTo(x, mainCanvas.height);
+  }
+  // Linhas horizontais
+  for (let y=0; y<mainCanvas.height; y+=GRID_SIZE) {
+    ctx.moveTo(0, y); ctx.lineTo(mainCanvas.width, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// RedrawAll com Grid
+function redrawAll(){
+  mainCtx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
+  mainCtx.drawImage(baseCanvas,0,0);
+  for (let obj of objects){
+    drawObject(mainCtx, obj);
+  }
+  // Adiciona a grade DEPOIS dos outros elementos
+  if (isGridVisible){
+    drawGrid(mainCtx);
+  }
+}
+
+/* draw an object with transforms */
+function drawObject(ctx, obj){
+  if (!obj.img) return;
+  ctx.save();
+  ctx.translate(obj.x + obj.w/2, obj.y + obj.h/2);
+  if (obj.mirror) ctx.scale(-1,1);
+  ctx.rotate(obj.rot * Math.PI / 180);
+  ctx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
+  ctx.restore();
+}
+
+/* =================
+   Blocks panel
+   ================= */
+const blocksEl = document.getElementById('blocks');
+// create 25 thumbnails (1.png..25.png)
+for (let i=1;i<=25;i++){
+  const img = document.createElement('img');
+  img.src = `${i}.png`;
+  img.draggable = true;
+  img.className = 'block';
+  img.title = `bloco ${i}.png`;
+  img.addEventListener('dragstart', (e)=>{
+    e.dataTransfer.setData('text/plain', `${i}.png`);
+  });
+  img.addEventListener('error', ()=>{ img.style.opacity = 0.3; img.title = `${i}.png (não encontrado)`; });
+  blocksEl.appendChild(img);
+}
+
+// Accept drops on overlayCanvas (we use overlay for drop coords)
+overlayCanvas.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+overlayCanvas.addEventListener('drop', (e)=>{
+  e.preventDefault();
+  const name = e.dataTransfer.getData('text/plain');
+  if (!name) return;
+  const rect = overlayCanvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  insertBlock(name, x, y);
+});
+
+/* insert block by filename at x,y (centered) */
+function insertBlock(filename, x, y){
+  const img = new Image();
+  img.onload = ()=>{
+    const w = Math.min(img.width, 150); // cap size initial
+    const h = img.height * (w / img.width);
+    const obj = {id:Date.now(), img:img, x: Math.round(x - w/2), y: Math.round(y - h/2), w: Math.round(w), h: Math.round(h), rot:0, mirror:false, scale:1};
+    objects.push(obj);
+    redrawAll();
+    pushUndo();
+    showToast('Bloco inserido: ' + filename);
+  };
+  img.onerror = ()=> showToast('Erro ao carregar ' + filename);
+  img.src = filename;
+}
+
+/* ============================
+   Utilities for colors/patterns
+   ============================ */
+function hexToRgbaArray(hex){
+  const shorthand = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+  hex = hex.replace(shorthand, (m,r,g,b)=> r+r+g+g+b+b);
+  const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return res ? [parseInt(res[1],16),parseInt(res[2],16),parseInt(res[3],16),255] : [0,0,0,255];
+}
+function getPatternData(patternType, fg, bg){
+  const size = 12; let w=size,h=size;
+  if (['dots','HV','DX','circles'].includes(patternType)){ w=h=size*2; }
+  const p = document.createElement('canvas'); p.width=w; p.height=h;
+  const c = p.getContext('2d');
+  c.fillStyle = bg; c.fillRect(0,0,w,h);
+  c.strokeStyle = fg; c.fillStyle = fg; c.lineWidth = 1;
+  switch(patternType){
+    case 'H': c.beginPath(); c.moveTo(0,h/2); c.lineTo(w,h/2); c.stroke(); break;
+    case 'V': c.beginPath(); c.moveTo(w/2,0); c.lineTo(w/2,h); c.stroke(); break;
+    case 'HV': c.beginPath(); c.moveTo(0,h/2); c.lineTo(w,h/2); c.moveTo(w/2,0); c.lineTo(w/2,h); c.stroke(); break;
+    case 'D_R': c.beginPath(); c.moveTo(0,h); c.lineTo(w,0); c.stroke(); break;
+    case 'D_L': c.beginPath(); c.moveTo(0,0); c.lineTo(w,h); c.stroke(); break;
+    case 'DX': c.beginPath(); c.moveTo(0,h); c.lineTo(w,0); c.moveTo(0,0); c.lineTo(w,h); c.stroke(); break;
+    case 'dots': c.beginPath(); c.arc(w/4,h/4,1.5,0,Math.PI*2); c.fill(); c.arc(3*w/4,3*h/4,1.5,0,Math.PI*2); c.fill(); break;
+    case 'circles': c.beginPath(); c.arc(w/2,h/2,2,0,Math.PI*2); c.fill(); break;
+  }
+  return {canvas:p,width:w,height:h, data: p.getContext('2d').getImageData(0,0,w,h).data};
+}
+function colorsMatch(a,b){
+  return a && b && a[0]===b[0] && a[1]===b[1] && a[2]===b[2] && a[3]===b[3];
+}
+
+/* ============================
+   Flood fill (fill + hatches)
+   ============================ */
+function getPixel(x,y, ctxToUse){
+  if (x<0||y<0||x>=baseCanvas.width||y>=baseCanvas.height) return null;
+  const data = ctxToUse.getImageData(x,y,1,1).data;
+  return [data[0],data[1],data[2],data[3]];
+}
+function runFloodFill(startX,startY, fillColorHex, patternType){
+  const width = baseCanvas.width, height = baseCanvas.height;
+  const target = getPixel(Math.round(startX),Math.round(startY), baseCtx);
+  if (!target) return false;
+  const baseFill = hexToRgbaArray(fillColorHex);
+  const pattern = patternType ? getPatternData(patternType, colorPicker.value, backgroundHatchColor.value) : null;
+  if (!pattern && colorsMatch(target, baseFill)) return false;
+
+  const imgData = baseCtx.getImageData(0,0,width,height);
+  const d = imgData.data;
+  const stack = [[Math.round(startX),Math.round(startY)]];
+  function idx(x,y){return (y*width + x)*4;}
+  let changed=false;
+  while(stack.length){
+    const [x,y] = stack.pop();
+    if (x<0||y<0||x>=width||y>=height) continue;
+    const i = idx(x,y);
+    const cur = [d[i],d[i+1],d[i+2],d[i+3]];
+    if (colorsMatch(cur,target)){
+      changed=true;
+      if (pattern){
+        const px = x % pattern.width, py = y % pattern.height;
+        const pidx = (py*pattern.width + px)*4;
+        d[i]=pattern.data[pidx]; d[i+1]=pattern.data[pidx+1]; d[i+2]=pattern.data[pidx+2]; d[i+3]=pattern.data[pidx+3];
+      } else {
+        d[i]=baseFill[0]; d[i+1]=baseFill[1]; d[i+2]=baseFill[2]; d[i+3]=baseFill[3];
+      }
+      stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+  }
+  if (changed) baseCtx.putImageData(imgData,0,0);
+  return changed;
+}
+
+/* ============================
+   Selection & overlay logic 
+   ============================ */
+
+/* clear overlay */
+function clearOverlay(){ overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height); }
+
+/* draw dashed translucent rect on overlay */
+function drawOverlaySelection(x,y,w,h){
+  clearOverlay();
+  overlayCtx.save();
+  overlayCtx.strokeStyle = 'rgba(37,128,255,0.95)';
+  overlayCtx.lineWidth = 1.5;
+  overlayCtx.setLineDash([6,3]);
+  overlayCtx.strokeRect(x,y,w,h);
+  overlayCtx.fillStyle = 'rgba(37,128,255,0.06)';
+  overlayCtx.fillRect(x,y,w,h);
+  overlayCtx.restore();
+}
+
+/* check object hit (no rotation accurate - approximate with bbox) */
+function findObjectAt(x,y){
+  for (let i = objects.length - 1; i >=0; i--){
+    const o = objects[i];
+    const cx = o.x + o.w/2, cy = o.y + o.h/2;
+    const dx = x - cx, dy = y - cy;
+    let angle = -o.rot * Math.PI/180;
+    let mx = dx, my = dy;
+    if (o.mirror) mx = -mx;
+    const rx = mx * Math.cos(angle) - my * Math.sin(angle);
+    const ry = mx * Math.sin(angle) + my * Math.cos(angle);
+    if (rx >= -o.w/2 && rx <= o.w/2 && ry >= -o.h/2 && ry <= o.h/2) return o;
+  }
+  return null;
+}
+
+/* copy/paste handling for objects and raster selection */
+function copySelection(){
+  if (selectedObject){
+    copiedObject = JSON.parse(JSON.stringify(selectedObject));
+    copiedObject.img = selectedObject.img;
+    showToast('Bloco copiado');
+    return;
+  }
+  if (!selectionRect){ showToast('Nada selecionado'); return; }
+  copiedImageData = baseCtx.getImageData(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+  showToast('Área copiada');
+}
+function cutSelection(){
+  if (selectedObject){
+    const idx = objects.findIndex(o=> o.id === selectedObject.id);
+    if (idx>=0) objects.splice(idx,1);
+    selectedObject = null; copiedObject = null;
+    redrawAll(); pushUndo(); showToast('Bloco recortado');
+    return;
+  }
+  if (!selectionRect){ showToast('Nada selecionado'); return; }
+  copySelection();
+  baseCtx.clearRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+  selectionRect = null; copiedImageData = null;
+  redrawAll(); pushUndo(); showToast('Área recortada');
+}
+function pasteSelection(){
+  if (copiedObject){
+    const o = JSON.parse(JSON.stringify(copiedObject));
+    o.id = Date.now();
+    o.x = Math.max(0, Math.min(baseCanvas.width - o.w, lastMouse.x - o.w/2));
+    o.y = Math.max(0, Math.min(baseCanvas.height - o.h, lastMouse.y - o.h/2));
+    o.img = copiedObject.img;
+    objects.push(o);
+    redrawAll(); pushUndo(); showToast('Bloco colado');
+    return;
+  }
+  if (!copiedImageData){ showToast('Nada para colar'); return; }
+  const x = Math.max(0, Math.min(baseCanvas.width - copiedImageData.width, lastMouse.x - Math.round(copiedImageData.width/2)));
+  const y = Math.max(0, Math.min(baseCanvas.height - copiedImageData.height, lastMouse.y - Math.round(copiedImageData.height/2)));
+  baseCtx.putImageData(copiedImageData, x, y);
+  selectionRect = {x:x, y:y, w:copiedImageData.width, h:copiedImageData.height};
+  redrawAll(); pushUndo(); showToast('Área colada');
+}
+
+/* rotate/mirror selection (applies to selectedObject if exists; else raster copiedImageData) */
+function rotateSelection(angle){
+  if (selectedObject){
+    selectedObject.rot = (selectedObject.rot + angle) % 360;
+    redrawAll(); pushUndo(); showToast('Bloco rotacionado');
+    return;
+  }
+  if (!copiedImageData || !selectionRect){ showToast('Nada selecionado/copiado'); return; }
+
+  // 1. Rotação do buffer
+  const tmp = document.createElement('canvas'); tmp.width = copiedImageData.height; tmp.height = copiedImageData.width;
+  const tctx = tmp.getContext('2d');
+  const aux = document.createElement('canvas'); aux.width=copiedImageData.width; aux.height=copiedImageData.height;
+  aux.getContext('2d').putImageData(copiedImageData,0,0);
+  tctx.translate(tmp.width/2, tmp.height/2);
+  tctx.rotate(angle * Math.PI/180);
+  tctx.drawImage(aux, -aux.width/2, -aux.height/2);
+  copiedImageData = tctx.getImageData(0,0,tmp.width,tmp.height);
+  
+  // 2. Apaga a área antiga e ajusta o selectionRect
+  baseCtx.clearRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+  
+  // O centro da seleção antiga será o centro da nova
+  const centerX = selectionRect.x + selectionRect.w/2;
+  const centerY = selectionRect.y + selectionRect.h/2;
+
+  selectionRect.w = copiedImageData.width;
+  selectionRect.h = copiedImageData.height;
+  selectionRect.x = Math.round(centerX - selectionRect.w/2);
+  selectionRect.y = Math.round(centerY - selectionRect.h/2);
+
+  // 3. Cola a imagem transformada no novo selectionRect
+  baseCtx.putImageData(copiedImageData, selectionRect.x, selectionRect.y);
+  
+  // 4. Finaliza
+  redrawAll(); pushUndo();
+  drawOverlaySelection(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+  showToast('Área rotacionada e aplicada');
+}
+
+function mirrorSelection(dir){
+  if (selectedObject){
+    selectedObject.mirror = !selectedObject.mirror;
+    redrawAll(); pushUndo(); showToast('Bloco espelhado');
+    return;
+  }
+  if (!copiedImageData || !selectionRect){ showToast('Nada selecionado/copiado'); return; }
+
+  // 1. Espelhamento do buffer
+  const tmp = document.createElement('canvas');
+  tmp.width = copiedImageData.width; tmp.height = copiedImageData.height;
+  const tctx = tmp.getContext('2d');
+  const aux = document.createElement('canvas'); aux.width=copiedImageData.width; aux.height=copiedImageData.height;
+  aux.getContext('2d').putImageData(copiedImageData,0,0);
+  tctx.translate(tmp.width, 0); tctx.scale(-1,1);
+  tctx.drawImage(aux,0,0);
+  copiedImageData = tctx.getContext('2d').getImageData(0,0,tmp.width,tmp.height);
+
+  // 2. Mantém o selectionRect, pois as dimensões não mudam
+  baseCtx.clearRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+  
+  // 3. Cola a imagem transformada
+  baseCtx.putImageData(copiedImageData, selectionRect.x, selectionRect.y);
+
+  // 4. Finaliza
+  redrawAll(); pushUndo();
+  drawOverlaySelection(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+  showToast('Área espelhada e aplicada');
+}
+
+/* ============================
+   Event flow: pointer events on overlay 
+   ============================ */
+let pointerDown = false;
+overlayCanvas.addEventListener('pointerdown', (ev)=>{
+  overlayCanvas.setPointerCapture(ev.pointerId);
+  pointerDown = true;
+  const rect = overlayCanvas.getBoundingClientRect();
+  const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  startX = Math.round(x); startY = Math.round(y);
+  lastMouse.x = startX; lastMouse.y = startY;
+  const obj = findObjectAt(startX, startY);
+  if (obj){
+    selectedObject = obj;
+    selectionRect = null; copiedImageData = null;
+    isDraggingSelection = true;
+    selectionOffset.x = startX - obj.x; selectionOffset.y = startY - obj.y;
+    clearOverlay();
+    drawOverlayForObject(obj);
+    return;
+  } else {
+    selectedObject = null;
+    clearOverlay();
+  }
+
+  if (currentTool === 'fill' || currentTool === 'hatch' || currentTool === 'text'){
+    if (currentTool === 'fill'){
+      const ok = runFloodFill(startX,startY, colorPicker.value, null);
+      if (ok){ pushUndo(); redrawAll(); showToast('Preenchido'); } else showToast('Nada para preencher');
+    } else if (currentTool === 'hatch'){
+      const pattern = hatchPatternSelect.value;
+      const ok = runFloodFill(startX,startY, backgroundHatchColor.value, pattern);
+      if (ok){ pushUndo(); redrawAll(); showToast('Hachurado'); } else showToast('Nada para hachurar');
+    } else if (currentTool === 'text'){
+      openTextInput(startX, startY);
+    }
+    return;
+  }
+
+  if (currentTool === 'selectRect' || ['line','rect','circle','triangle','ellipse','measure'].includes(currentTool) || currentTool === 'eraser' || currentTool === 'pencil'){
+    selectionRect = null;
+    copiedImageData = null;
+    clearOverlay();
+  }
+});
+
+overlayCanvas.addEventListener('pointermove', (ev)=>{
+  const rect = overlayCanvas.getBoundingClientRect();
+  const x = Math.round(ev.clientX - rect.left), y = Math.round(ev.clientY - rect.top);
+  lastMouse.x = x; lastMouse.y = y;
+  document.getElementById('coords').innerText = `x:${x} y:${y}`;
+  if (!pointerDown) return;
+  if (isDraggingSelection && selectedObject){
+    clearOverlay();
+    const nx = Math.round(x - selectionOffset.x), ny = Math.round(y - selectionOffset.y);
+    drawOverlayObjectPreview(selectedObject, nx, ny);
+    return;
+  }
+
+  clearOverlay();
+  if (currentTool === 'pencil'){
+    baseCtx.strokeStyle = colorPicker.value;
+    baseCtx.lineWidth = Math.max(1, parseInt(lineWidthInput.value||2));
+    if (lineStyleSelect.value === 'dashed') baseCtx.setLineDash([6,4]); else baseCtx.setLineDash([]);
+    baseCtx.beginPath(); baseCtx.moveTo(startX,startY); baseCtx.lineTo(x,y); baseCtx.stroke();
+    startX = x; startY = y;
+    redrawAll(); 
+    return;
+  }
+
+  overlayCtx.save();
+  overlayCtx.strokeStyle = colorPicker.value;
+  overlayCtx.lineWidth = Math.max(1, parseInt(lineWidthInput.value||2));
+  overlayCtx.setLineDash(lineStyleSelect.value === 'dashed' ? [6,4] : []);
+  switch(currentTool){
+    case 'line': overlayCtx.beginPath(); overlayCtx.moveTo(startX,startY); overlayCtx.lineTo(x,y); overlayCtx.stroke(); break;
+    case 'rect': overlayCtx.strokeRect(startX,startY, x-startX, y-startY); break;
+    case 'circle': overlayCtx.beginPath(); overlayCtx.arc(startX, startY, Math.hypot(x-startX,y-startY),0,Math.PI*2); overlayCtx.stroke(); break;
+    case 'triangle': overlayCtx.beginPath(); overlayCtx.moveTo(startX,startY); overlayCtx.lineTo(x,y); overlayCtx.lineTo(startX-(x-startX),y); overlayCtx.closePath(); overlayCtx.stroke(); break;
+    case 'ellipse': overlayCtx.beginPath(); overlayCtx.ellipse((startX+x)/2,(startY+y)/2, Math.abs(x-startX)/2, Math.abs(y-startY)/2,0,0,Math.PI*2); overlayCtx.stroke(); break;
+    case 'measure': // ⚠️ Correção da Cota: Rotação e Posicionamento
+      const dx = x - startX, dy = y - startY;
+      const angle = Math.atan2(dy, dx);
+      const centerX = (startX + x) / 2;
+      const centerY = (startY + y) / 2;
+      const offset = 10; // Distância do texto em relação à linha
+
+      // 1. Desenha a linha da cota
+      overlayCtx.beginPath(); overlayCtx.moveTo(startX,startY); overlayCtx.lineTo(x,y); overlayCtx.stroke();
+      
+      // 2. Translação, Rotação e Posicionamento do Texto
+      overlayCtx.save();
+      overlayCtx.translate(centerX, centerY);
+      overlayCtx.rotate(angle);
+      
+      // Ajusta alinhamento para o centro e posição acima da linha (Y negativo no contexto rotacionado)
+      overlayCtx.textAlign = 'center';
+      overlayCtx.textBaseline = 'bottom'; 
+      overlayCtx.fillStyle = colorPicker.value; 
+      overlayCtx.font='14px Arial';
+      
+      // Desenha o texto 'offset' pixels acima da linha (e rotacionado)
+      overlayCtx.fillText(calculateMeasurementText(startX,startY,x,y), 0, -offset); 
+      overlayCtx.restore(); 
+      break;
+    case 'eraser':
+      overlayCtx.clearRect(x-8,y-8,16,16);
+      baseCtx.clearRect(x-8,y-8,16,16); redrawAll(); break;
+    case 'selectRect':
+      drawOverlaySelection(Math.min(startX,x), Math.min(startY,y), Math.abs(x-startX), Math.abs(y-startY));
+      break;
+  }
+  overlayCtx.restore();
+});
+
+overlayCanvas.addEventListener('pointerup', (ev)=>{
+  pointerDown = false;
+  overlayCanvas.releasePointerCapture(ev.pointerId);
+  const rect = overlayCanvas.getBoundingClientRect();
+  const x = Math.round(ev.clientX - rect.left), y = Math.round(ev.clientY - rect.top);
+
+  if (isDraggingSelection && selectedObject){
+    isDraggingSelection = false;
+    if (selectedObject._previewPos){ selectedObject.x = selectedObject._previewPos.x; selectedObject.y = selectedObject._previewPos.y; delete selectedObject._previewPos; }
+    redrawAll(); pushUndo(); clearOverlay(); showToast('Bloco movido');
+    return;
+  }
+
+  clearOverlay();
+  if (currentTool === 'line' || currentTool === 'rect' || currentTool === 'circle' || currentTool === 'triangle' || currentTool === 'ellipse' || currentTool === 'measure'){
+    baseCtx.strokeStyle = colorPicker.value;
+    baseCtx.lineWidth = Math.max(1, parseInt(lineWidthInput.value||2));
+    if (lineStyleSelect.value === 'dashed') baseCtx.setLineDash([6,4]); else baseCtx.setLineDash([]);
+    
+    if (currentTool === 'line'){
+      baseCtx.beginPath(); baseCtx.moveTo(startX,startY); baseCtx.lineTo(x,y); baseCtx.stroke();
+    } else if (currentTool === 'measure'){ // ⚠️ Correção da Cota: Aplicação no Canvas Base
+      const dx = x - startX, dy = y - startY;
+      const angle = Math.atan2(dy, dx);
+      const centerX = (startX + x) / 2;
+      const centerY = (startY + y) / 2;
+      const offset = 10;
+      
+      // 1. Desenha a linha da cota
+      baseCtx.beginPath(); baseCtx.moveTo(startX,startY); baseCtx.lineTo(x,y); baseCtx.stroke();
+      
+      // 2. Translação, Rotação e Posicionamento do Texto FINAL
+      baseCtx.save();
+      baseCtx.translate(centerX, centerY);
+      baseCtx.rotate(angle);
+      
+      baseCtx.textAlign = 'center';
+      baseCtx.textBaseline = 'bottom';
+      baseCtx.fillStyle = colorPicker.value; 
+      baseCtx.font = '14px Arial';
+      
+      // Desenha o texto final
+      baseCtx.fillText(calculateMeasurementText(startX,startY,x,y), 0, -offset);
+      baseCtx.restore(); // Restaura o contexto
+    } else if (currentTool === 'rect'){
+      baseCtx.strokeRect(startX,startY, x-startX, y-startY);
+    } else if (currentTool === 'circle'){
+      baseCtx.beginPath(); baseCtx.arc(startX,startY, Math.hypot(x-startX,y-startY),0,Math.PI*2); baseCtx.stroke();
+    } else if (currentTool === 'triangle'){
+      baseCtx.beginPath(); baseCtx.moveTo(startX,startY); baseCtx.lineTo(x,y); baseCtx.lineTo(startX-(x-startX),y); baseCtx.closePath(); baseCtx.stroke();
+    } else if (currentTool === 'ellipse'){
+      baseCtx.beginPath(); baseCtx.ellipse((startX+x)/2,(startY+y)/2, Math.abs(x-startX)/2, Math.abs(y-startY)/2,0,0,Math.PI*2); baseCtx.stroke();
+    }
+    pushUndo(); redrawAll(); showToast('Forma aplicada');
+    return;
+  }
+
+  if (currentTool === 'selectRect'){
+    const sx = Math.min(startX, x), sy = Math.min(startY, y), sw = Math.abs(x-startX), sh = Math.abs(y-startY);
+    if (sw < 4 || sh < 4){ selectionRect = null; clearOverlay(); showToast('Seleção cancelada'); return; }
+    selectionRect = {x:Math.round(sx), y:Math.round(sy), w:Math.round(sw), h:Math.round(sh)};
+    try{ copiedImageData = baseCtx.getImageData(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h); }catch(e){ console.warn('getImageData falhou', e); copiedImageData = null; }
+    drawOverlaySelection(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+    showToast('Área selecionada');
+    return;
+  }
+
+  if (currentTool === 'pencil' || currentTool === 'eraser'){
+    pushUndo(); redrawAll(); showToast(currentTool === 'pencil' ? 'Desenhado' : 'Apagado');
+    return;
+  }
+});
+
+overlayCanvas.addEventListener('click', (ev)=>{
+  const rect = overlayCanvas.getBoundingClientRect();
+  const x = Math.round(ev.clientX - rect.left), y = Math.round(ev.clientY - rect.top);
+  const obj = findObjectAt(x,y);
+  if (obj){
+    selectedObject = obj;
+    selectionRect = null; copiedImageData = null;
+    drawOverlayForObject(obj);
+    showToast('Bloco selecionado');
+  } else {
+    selectedObject = null;
+    clearOverlay();
+  }
+});
+
+function drawOverlayForObject(obj){
+  clearOverlay();
+  overlayCtx.save();
+  overlayCtx.translate(obj.x + obj.w/2, obj.y + obj.h/2);
+  overlayCtx.rotate(obj.rot * Math.PI/180);
+  if (obj.mirror) overlayCtx.scale(-1,1);
+  overlayCtx.strokeStyle = 'rgba(37,128,255,0.95)';
+  overlayCtx.lineWidth = 1.5;
+  overlayCtx.setLineDash([6,3]);
+  overlayCtx.strokeRect(-obj.w/2, -obj.h/2, obj.w, obj.h);
+  overlayCtx.fillStyle = 'rgba(37,128,255,0.06)';
+  overlayCtx.fillRect(-obj.w/2, -obj.h/2, obj.w, obj.h);
+  overlayCtx.restore();
+}
+
+function drawOverlayObjectPreview(obj, nx, ny){
+  clearOverlay();
+  overlayCtx.save();
+  overlayCtx.translate(nx + obj.w/2, ny + obj.h/2);
+  overlayCtx.rotate(obj.rot * Math.PI/180);
+  if (obj.mirror) overlayCtx.scale(-1,1);
+  overlayCtx.globalAlpha = 0.9;
+  overlayCtx.drawImage(obj.img, -obj.w/2, -obj.h/2, obj.w, obj.h);
+  overlayCtx.restore();
+  overlayCtx.save();
+  overlayCtx.strokeStyle = 'rgba(37,128,255,0.95)';
+  overlayCtx.setLineDash([6,3]);
+  overlayCtx.strokeRect(nx, ny, obj.w, obj.h);
+  overlayCtx.restore();
+  obj._previewPos = {x:nx, y:ny};
+}
+
+/* ============================
+   Text box functions
+   ============================ */
+function openTextInput(x,y){
+  const wrapRect = mainCanvas.getBoundingClientRect();
+  textBox.style.left = (wrapRect.left + x + 6) + 'px';
+  textBox.style.top = (wrapRect.top + y + 6) + 'px';
+  textBox.style.display = 'block';
+  textEditor.value = '';
+  textEditor.focus();
+  textBox.dataset.x = x; textBox.dataset.y = y;
+}
+function cancelText(){ textBox.style.display = 'none'; textEditor.value = ''; }
+function commitText(){
+  const txt = textEditor.value;
+  if (!txt || !txt.trim()){ cancelText(); return; }
+  const x = parseFloat(textBox.dataset.x), y = parseFloat(textBox.dataset.y);
+  baseCtx.fillStyle = colorPicker.value;
+  
+  const fontSize = parseInt(fontSelect.value); 
+  baseCtx.font = `${fontSize}px Arial`;
+  
+  const lines = txt.split('\n');
+  lines.forEach((l,i)=> baseCtx.fillText(l, x, y + i * (fontSize + 4)));
+  pushUndo(); redrawAll();
+  textBox.style.display = 'none'; textEditor.value = '';
+  showToast('Texto inserido');
+}
+
+/* ============================
+   Measurement helper
+   ============================ */
+function calculateMeasurementText(x1,y1,x2,y2){
+  const PIXEL_TO_CM_SCALE = parseFloat(scaleInput.value) || 1; 
+  const unit = unitSelect.value; 
+
+  const lenPx = Math.hypot(x2-x1,y2-y1);
+  let lengthInCm = lenPx * PIXEL_TO_CM_SCALE;
+  let finalLength;
+
+  if (unit === 'm') { 
+    finalLength = (lengthInCm / 100).toFixed(2); 
+  } else if (unit === 'mm') { 
+    finalLength = (lengthInCm * 10).toFixed(0); 
+  } else { // cm
+    finalLength = lengthInCm.toFixed(2); 
+  }
+  
+  return `${finalLength} ${unit}`;
+}
+
+/* ============================
+   Undo / redo / export / clear
+   ============================ */
+function undo(){
+  if (undoStack.length < 2) { showToast('Nada a desfazer'); return; }
+  try{
+    redoStack.push(undoStack.pop());
+    const img = new Image();
+    img.onload = ()=>{
+      baseCtx.clearRect(0,0,baseCanvas.width, baseCanvas.height);
+      baseCtx.drawImage(img,0,0);
+      redrawAll();
+      showToast('Desfeito');
+    };
+    img.src = undoStack[undoStack.length - 1];
+  }catch(e){ console.warn(e); showToast('Erro ao desfazer'); }
+}
+function redo(){
+  if (!redoStack.length){ showToast('Nada a refazer'); return; }
+  try{
+    const state = redoStack.pop();
+    undoStack.push(state);
+    const img = new Image();
+    img.onload = ()=>{
+      baseCtx.clearRect(0,0,baseCanvas.width, baseCanvas.height);
+      baseCtx.drawImage(img,0,0);
+      redrawAll();
+      showToast('Refeito');
+    };
+    img.src = state;
+  }catch(e){ console.warn(e); showToast('Erro ao refazer'); }
+}
+function exportPNG(){
+  const tmp = document.createElement('canvas'); tmp.width = baseCanvas.width; tmp.height = baseCanvas.height;
+  const t = tmp.getContext('2d');
+  t.drawImage(baseCanvas,0,0);
+  for (let o of objects) drawObject(t, o);
+  const url = tmp.toDataURL('image/png');
+  const a = document.createElement('a'); a.href = url; a.download = 'planta.png'; a.click();
+  showToast('Exportado PNG');
+}
+function clearCanvas(){
+  baseCtx.clearRect(0,0,baseCanvas.width, baseCanvas.height);
+  objects = []; selectionRect = null; copiedImageData = null; selectedObject = null; copiedObject = null;
+  redrawAll(); pushUndo(); showToast('Canvas limpo');
+}
+
+// Função para ativar/desativar o Grid
+function toggleGrid(){ 
+  isGridVisible = !isGridVisible; 
+  redrawAll(); // Chama o redesenho, que agora sabe se deve ou não desenhar a grade
+  pushUndo(); 
+  showToast('Grade ' + (isGridVisible?'ON':'OFF')); 
+}
+
+/* keyboard shortcuts */
+window.addEventListener('keydown', (e)=>{
+  if (e.ctrlKey && e.key === 'z'){ e.preventDefault(); undo(); }
+  if (e.ctrlKey && e.key === 'y'){ e.preventDefault(); redo(); }
+  if (e.ctrlKey && e.key === 'c'){ e.preventDefault(); copySelection(); }
+  if (e.ctrlKey && e.key === 'x'){ e.preventDefault(); cutSelection(); }
+  if (e.ctrlKey && e.key === 'v'){ e.preventDefault(); pasteSelection(); }
+  if (e.key === 'Delete' || e.key === 'Backspace'){
+    if (selectedObject){
+      const idx = objects.findIndex(o=> o.id === selectedObject.id);
+      if (idx>=0) objects.splice(idx,1);
+      selectedObject = null; redrawAll(); pushUndo(); showToast('Bloco deletado');
+    } else if (selectionRect){
+      baseCtx.clearRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+      selectionRect = null; copiedImageData = null; redrawAll(); pushUndo(); showToast('Seleção removida');
+    }
+  }
+});
+
+/* utility: draw overlay when resizing window to match canvas position */
+window.addEventListener('resize', ()=>{ });
+
+/* mouse position tracking on overlay for paste */
+overlayCanvas.addEventListener('mousemove', (e)=> {
+  const rect = overlayCanvas.getBoundingClientRect();
+  lastMouse.x = Math.round(e.clientX - rect.left);
+  lastMouse.y = Math.round(e.clientY - rect.top);
+});
+
+/* expose some functions to buttons */
+function setTool(t){
+  currentTool = t;
+  currentToolSpan.innerText = t;
+  clearOverlay();
+  selectionRect = null; copiedImageData = null; selectedObject = null;
+}
+
+redrawAll();
+
+function drawOverlayForAllSelected(){
+  clearOverlay();
+  if (selectionRect) drawOverlaySelection(selectionRect.x,selectionRect.y,selectionRect.w,selectionRect.h);
+  if (selectedObject) drawOverlayForObject(selectedObject);
+}
+
+window.setTool = setTool;
+window.copySelection = copySelection;
+window.cutSelection = cutSelection;
+window.pasteSelection = pasteSelection;
+window.rotateSelection = (deg)=> rotateSelection(deg || 90);
+window.mirrorSelection = (dir)=> mirrorSelection(dir);
+window.undo = undo;
+window.redo = redo;
+window.exportPNG = exportPNG;
+window.clearCanvas = clearCanvas;
+window.toggleGrid = toggleGrid;
+
+showToast('Protótipo pronto — blocos 1.png..25.png devem estar na mesma pasta');
+</script>
+</body>
+</html>
