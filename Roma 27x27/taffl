@@ -1,0 +1,742 @@
+Html
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabuleiro Tafl Interativo - Interseções</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Tabuleiro Tafl 9x9 (Interseções)</h1>
+
+    <div class="controls-area">
+        <div id="pieces-stock">
+            <h2>Peças Disponíveis</h2>
+            <div class="piece-container" id="king-white-stock">
+                <div class="piece king" draggable="true" data-type="king" data-color="white">♔</div>
+            </div>
+            <div class="piece-container" id="pawn-black-stock">
+                <div class="piece pawn black" draggable="true" data-type="pawn" data-color="black">♟</div>
+            </div>
+            <div class="piece-container" id="pawn-white-stock">
+                <div class="piece pawn white" draggable="true" data-type="pawn" data-color="white">♙</div>
+            </div>
+        </div>
+
+        <div id="remove-area">
+            <h2>Remover Peça</h2>
+            <div class="drop-target-area">
+                Arraste peças para cá para removê-las.
+            </div>
+        </div>
+    </div>
+
+    <div id="board-container"> <div id="board">
+            </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+Style
+
+body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+.controls-area {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+#pieces-stock {
+    margin-bottom: 0;
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#pieces-stock h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.piece-container {
+    display: inline-block;
+    margin: 0 10px;
+    padding: 8px;
+    border: 1px dashed #ccc;
+    cursor: grab;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.piece-container:hover {
+    background-color: #e9e9e9;
+}
+
+/* Estilo para a peça genérica */
+.piece {
+    width: 40px;  /* Tamanho da peça */
+    height: 40px; /* Tamanho da peça */
+    border-radius: 50%;
+    
+    /* Configurações para centralizar a peça NO CENTRO DA SUA PRÓPRIA DIV */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-weight: bold;
+    cursor: grab;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-sizing: border-box;
+    border: 3px solid transparent;
+    font-size: 24px;
+    user-select: none;
+
+    /* A posição da peça será controlada pelo JavaScript, 
+       mas estas propriedades a mantêm no centro de sua própria DIV. */
+}
+
+/* Estilo específico para o Rei */
+.piece.king {
+    background-color: #d4af37;
+    color: #333;
+    border-color: #a08000;
+}
+
+/* Estilo específico para o Peão Branco */
+.piece.pawn.white {
+    background-color: #ffffff;
+    color: #333;
+    border-color: #d4af37;
+}
+
+/* Estilo específico para o Peão Preto */
+.piece.pawn.black {
+    background-color: #222222;
+    color: #fff;
+    border-color: #000;
+}
+
+/* O tabuleiro agora será um grid que cria as INTERSEÇÕES */
+#board {
+    display: grid;
+    /* Criamos 9 linhas de INTERSEÇÕES (9x9).
+       Entre cada interseção, temos um "espaço" que será o quadrado visual.
+       Se temos 9 interseções, temos 8 "espaços" visuais entre elas.
+       Vamos dimensionar as casas para serem um pouco maiores que as peças.
+    */
+    grid-template-columns: repeat(8, 50px); /* 8 "espaços" visuais entre as 9 colunas de interseções */
+    grid-template-rows: repeat(8, 50px);    /* 8 "espaços" visuais entre as 9 linhas de interseções */
+    
+    /* Para simular as linhas de interseção visuais, podemos usar um tabuleiro com bordas mais grossas */
+    border: 2px solid #333; /* Borda geral do tabuleiro */
+    width: calc(8 * 50px + 2 * 2px); /* Largura total: 8 espaços * tamanho + borda */
+    height: calc(8 * 50px + 2 * 2px); /* Altura total: 8 espaços * tamanho + borda */
+    
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    background-color: #ccc; /* Cor de fundo do tabuleiro */
+    position: relative; /* Necessário para posicionar os elementos filhos (peças) */
+}
+
+/* As casas agora representam os ESPAÇOS entre as interseções */
+.square {
+    box-sizing: border-box;
+    background-color: transparent; /* As casas em si não têm cor, são os pontos de interseção que importam */
+    border: 1px solid #ddd; /* Borda sutil para delimitar os "espaços" */
+    display: flex; /* Para ajudar a centralizar virtualmente o que vier dentro */
+    align-items: center;
+    justify-content: center;
+    /* Não usamos mais cores light/dark para as casas, as linhas são as que importam visualmente */
+}
+
+/* Adicionando as linhas visuais */
+/* Linhas verticais (colunas) */
+#board .square:nth-child(8n+1) { /* Cada primeira coluna em uma linha */
+    border-left-color: #333;
+    border-left-width: 2px; /* Linha mais grossa para borda esquerda */
+}
+#board .square:nth-child(8n+2),
+#board .square:nth-child(8n+3),
+#board .square:nth-child(8n+4),
+#board .square:nth-child(8n+5),
+#board .square:nth-child(8n+6),
+#board .square:nth-child(8n+7) {
+    border-left-color: #888; /* Linhas mais finas */
+}
+#board .square:nth-child(8n+8) { /* Borda direita do tabuleiro */
+    border-right-color: #333;
+    border-right-width: 2px;
+}
+
+/* Linhas horizontais (linhas) */
+/* Para isso, precisamos de um seletor que pegue grupos de 8 elementos */
+/* O seletor :nth-child(8n+k) funciona para colunas, para linhas, precisamos aplicar a cada grupo */
+
+/* Para linhas, vamos usar uma abordagem mais explícita ou um pseudo-elemento se necessário */
+/* Uma forma mais simples é focar no 'board' como um todo e adicionar bordas */
+#board {
+    border-left: 2px solid #333;
+    border-top: 2px solid #333;
+    border-right: 2px solid #333;
+    border-bottom: 2px solid #333;
+}
+
+/* Para as linhas internas horizontais, precisaremos aplicar em cada .square */
+/* Isto pode ficar complexo com N*N grid. */
+/* Vamos simplificar: o JavaScript vai criar elementos de 'line' ou usar pseudo-elementos para as linhas */
+/* Ou, se preferir, manter as casas com cor e ajustar o posicionamento das peças */
+
+/* Vamos reconsiderar: Uma abordagem mais fácil é ter um grid de 9x9 INTERSEÇÕES */
+
+/* --- Nova Abordagem CSS: Grid de 9x9 de Interseções --- */
+#board {
+    display: grid;
+    grid-template-columns: repeat(9, 50px); /* 9 colunas de INTERSEÇÕES */
+    grid-template-rows: repeat(9, 50px);    /* 9 linhas de INTERSEÇÕES */
+    
+    width: calc(9 * 50px); /* 9 * 50px = 450px */
+    height: calc(9 * 50px);
+    
+    border: 2px solid #333; /* Borda geral */
+    background-color: #ccc; /* Cor de fundo */
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    position: relative; /* Para posicionamento absoluto das peças */
+    padding: 10px; /* Espaço para as linhas externas */
+    box-sizing: content-box; /* Padding não afeta o tamanho total declarado */
+}
+
+/* As "casas" agora são os pontos de interseção */
+.square {
+    width: 100%; /* Ocupa toda a célula do grid */
+    height: 100%;
+    display: flex; /* Usa flex para centralizar a peça que será adicionada a esta INTERSEÇÃO */
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    background-color: transparent; /* As interseções não têm cor própria, apenas linhas */
+    border: none; /* Remove bordas de quadrado */
+    
+    /* As linhas serão adicionadas via pseudo-elementos ou com JavaScript */
+}
+
+/* Pseudo-elementos para simular as linhas */
+.square::before, .square::after {
+    content: '';
+    position: absolute;
+    background-color: #888; /* Cor das linhas */
+    z-index: 0; /* Ficam atrás das peças */
+}
+
+/* Linhas verticais */
+.square::before {
+    width: 1px; /* Espessura da linha vertical */
+    height: 100%;
+    left: 50%; /* Centraliza horizontalmente dentro da célula */
+    transform: translateX(-50%); /* Ajuste fino para centralizar perfeitamente */
+    background-color: #888; /* Cor da linha */
+}
+
+/* Linhas horizontais */
+.square::after {
+    width: 100%;
+    height: 1px; /* Espessura da linha horizontal */
+    top: 50%; /* Centraliza verticalmente dentro da célula */
+    transform: translateY(-50%); /* Ajuste fino para centralizar perfeitamente */
+    background-color: #888; /* Cor da linha */
+}
+
+/* Remover linhas desnecessárias nas bordas do tabuleiro */
+/* Linhas verticais extremas (coluna 0 e coluna 8) */
+.square:nth-child(9n+1)::before { /* Primeira coluna */
+    left: 0; /* Alinha com a borda esquerda do #board */
+    background-color: #333; /* Linha mais grossa/escura na borda */
+    width: 2px; /* Espessura da borda */
+}
+.square:nth-child(9n+9)::before { /* Última coluna */
+    right: 0; /* Alinha com a borda direita do #board */
+    background-color: #333; /* Linha mais grossa/escura na borda */
+    width: 2px;
+}
+
+/* Linhas horizontais extremas (linha 0 e linha 8) */
+/* Para isso, precisamos percorrer as 9 linhas */
+/* Selecionar todos os elementos da primeira linha (0 a 8) */
+#board .square:nth-child(-n+9)::after { 
+    top: 0; /* Alinha com a borda superior */
+    background-color: #333;
+    height: 2px;
+}
+/* Selecionar todos os elementos da última linha (72 a 80) */
+#board .square:nth-child(n+73)::after { /* 9*8 = 72. n+73 pegaria da 73ª posição em diante (última linha) */
+    bottom: 0; /* Alinha com a borda inferior */
+    background-color: #333;
+    height: 2px;
+}
+
+/* Remover as linhas internas onde elas não devem aparecer */
+/* Por exemplo, a linha horizontal no meio de uma "casa" que é uma interseção */
+/* Se a peça ficar EXATAMENTE na interseção, não queremos a linha atravessando o centro da peça. */
+/* Vamos fazer com que a peça (com border-radius: 50%) cubra a linha central */
+/* E ajustar o z-index para a peça ficar acima das linhas */
+
+.piece {
+    z-index: 1; /* Garante que as peças fiquem acima das linhas */
+    position: relative; /* Para que z-index funcione corretamente */
+}
+
+
+/* Ajuste nas áreas de controle */
+.controls-area {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+#pieces-stock {
+    margin-bottom: 0;
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#pieces-stock h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.piece-container {
+    display: inline-block;
+    margin: 0 10px;
+    padding: 8px;
+    border: 1px dashed #ccc;
+    cursor: grab;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.piece-container:hover {
+    background-color: #e9e9e9;
+}
+
+#remove-area {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+#remove-area h2 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.drop-target-area {
+    width: 150px;
+    height: 70px;
+    border: 2px dashed #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.drop-target-area.drag-over {
+    border-color: #ff6666;
+    background-color: #ffe6e6;
+}
+
+
+
+
+
+Script
+
+const boardElement = document.getElementById('board');
+const piecesStockElement = document.getElementById('pieces-stock');
+const removeAreaElement = document.getElementById('remove-area');
+
+// Definindo o número de INTERSEÇÕES, não de casas.
+// Para um tabuleiro 9x9 de interseções, teremos 8 "casas" visuais entre elas.
+// Mas vamos modelar o grid para 9x9 posições de peças.
+const boardGridSize = 9; // 9 linhas e 9 colunas de interseções
+
+let draggedElement = null;
+let isDraggingFromStock = false;
+let isDraggingToBoard = false;
+
+// Array para armazenar as posições das peças no tabuleiro lógico
+// Cada elemento será { type: 'king', color: 'white', row: r, col: c }
+const boardState = []; 
+
+// Função para criar o tabuleiro de INTERSEÇÕES
+function createBoard() {
+    boardElement.innerHTML = ''; // Limpa o tabuleiro antes de recriar
+    
+    boardElement.style.gridTemplateColumns = `repeat(${boardGridSize}, 50px)`;
+    boardElement.style.gridTemplateRows = `repeat(${boardGridSize}, 50px)`;
+    // Ajusta o padding do board para acomodar as bordas grossas das linhas externas
+    boardElement.style.padding = '10px'; 
+
+    for (let r = 0; r < boardGridSize; r++) {
+        for (let c = 0; c < boardGridSize; c++) {
+            const square = document.createElement('div');
+            square.classList.add('square');
+            square.dataset.row = r;
+            square.dataset.col = c;
+
+            // Adiciona listeners para as casas (interseções)
+            square.addEventListener('dragenter', handleDragEnter);
+            square.addEventListener('dragleave', handleDragLeave);
+            square.addEventListener('drop', handleDrop);
+            square.addEventListener('dragover', handleDragOver);
+
+            boardElement.appendChild(square);
+        }
+    }
+    
+    // Adiciona as linhas CSS via JavaScript para garantir compatibilidade e controle
+    addLinesToBoard();
+}
+
+// Função para adicionar as linhas visuais ao tabuleiro
+function addLinesToBoard() {
+    // Remove linhas existentes para evitar duplicação
+    document.querySelectorAll('.board-line').forEach(line => line.remove());
+
+    const boardRect = boardElement.getBoundingClientRect();
+    const squareSize = 50; // O mesmo tamanho definido no CSS para cada célula
+    const gridSize = boardGridSize; // 9x9
+
+    // Adiciona linhas verticais
+    for (let c = 0; c < gridSize; c++) {
+        const line = document.createElement('div');
+        line.classList.add('board-line');
+        line.style.position = 'absolute';
+        line.style.width = c === 0 || c === gridSize - 1 ? '2px' : '1px'; // Borda grossa nas extremidades
+        line.style.backgroundColor = c === 0 || c === gridSize - 1 ? '#333' : '#888'; // Cor da linha
+        line.style.left = `${c * squareSize + (c === 0 ? 10 : (c === gridSize - 1 ? -1 : 0)) }px`; // Ajuste de posição, adicionando padding e considerando espessura da linha
+        line.style.top = '10px'; // Começa após o padding superior
+        line.style.height = `${gridSize * squareSize}px`; // Altura total do grid
+        line.style.zIndex = '0';
+        boardElement.appendChild(line);
+    }
+
+    // Adiciona linhas horizontais
+    for (let r = 0; r < gridSize; r++) {
+        const line = document.createElement('div');
+        line.classList.add('board-line');
+        line.style.position = 'absolute';
+        line.style.height = r === 0 || r === gridSize - 1 ? '2px' : '1px'; // Borda grossa nas extremidades
+        line.style.backgroundColor = r === 0 || r === gridSize - 1 ? '#333' : '#888'; // Cor da linha
+        line.style.top = `${r * squareSize + (r === 0 ? 10 : (r === gridSize - 1 ? -1 : 0)) }px`; // Ajuste de posição
+        line.style.left = '10px'; // Começa após o padding esquerdo
+        line.style.width = `${gridSize * squareSize}px`; // Largura total do grid
+        line.style.zIndex = '0';
+        boardElement.appendChild(line);
+    }
+}
+
+// Adaptação para adicionar peças nas INTERSEÇÕES (centradas na div '.square')
+function placePieceOnBoard(pieceData, row, col) {
+    // Remove peça existente na mesma interseção, se houver
+    const existingPieceElement = findPieceElement(row, col);
+    if (existingPieceElement) {
+        existingPieceElement.remove();
+        // Remover do boardState também
+        const index = boardState.findIndex(p => p.row === row && p.col === col);
+        if (index !== -1) boardState.splice(index, 1);
+    }
+
+    const newPiece = document.createElement('div');
+    newPiece.classList.add('piece');
+    newPiece.dataset.type = pieceData.type;
+    newPiece.dataset.color = pieceData.color;
+    newPiece.dataset.row = row; // Armazena a posição lógica na peça
+    newPiece.dataset.col = col;
+
+    if (pieceData.type === 'king') {
+        newPiece.classList.add('king');
+        newPiece.textContent = '♔';
+    } else { // Peão
+        newPiece.classList.add('pawn');
+        if (pieceData.color === 'white') {
+            newPiece.classList.add('white');
+            newPiece.textContent = '♙';
+        } else {
+            newPiece.classList.add('black');
+            newPiece.textContent = '♟';
+        }
+    }
+    
+    newPiece.setAttribute('draggable', true);
+    newPiece.addEventListener('dragstart', handleBoardPieceDragStart);
+    newPiece.addEventListener('dragend', handleDragEnd);
+
+    // Encontra a casa (interseção) correta no grid
+    const targetSquare = boardElement.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
+    if (targetSquare) {
+        targetSquare.appendChild(newPiece); // Adiciona a peça à div da interseção
+        
+        // Adiciona ao estado do tabuleiro
+        boardState.push({ ...pieceData, row, col });
+    }
+}
+
+// Função auxiliar para encontrar o elemento de peça em uma determinada interseção
+function findPieceElement(row, col) {
+    return boardElement.querySelector(`.square[data-row="${row}"][data-col="${col}"] > .piece`);
+}
+
+// Função auxiliar para remover uma peça do estado lógico e visual
+function removePieceFromBoard(row, col) {
+    const pieceElement = findPieceElement(row, col);
+    if (pieceElement) {
+        pieceElement.remove();
+        const index = boardState.findIndex(p => p.row === row && p.col === col);
+        if (index !== -1) boardState.splice(index, 1);
+        return true;
+    }
+    return false;
+}
+
+// Inicializa algumas peças no tabuleiro (exemplo)
+function initializeBoard() {
+    // Rei no centro (interseção 4,4 em um grid 9x9)
+    placePieceOnBoard({ type: 'king', color: 'white' }, 4, 4);
+    
+    // Peões nas posições iniciais (exemplo)
+    // Linhas de cima e de baixo, nas bordas e colunas centrais
+    // Linha 0, colunas 1, 4, 7
+    placePieceOnBoard({ type: 'pawn', color: 'black' }, 0, 1);
+    placePieceOnBoard({ type: 'pawn', color: 'black' }, 0, 4);
+    placePieceOnBoard({ type: 'pawn', color: 'black' }, 0, 7);
+    // Linha 8, colunas 1, 4, 7
+    placePieceOnBoard({ type: 'pawn', color: 'black' }, 8, 1);
+    placePieceOnBoard({ type: 'pawn', color: 'black' }, 8, 4);
+    placePieceOnBoard({ type: 'pawn', color: 'black' }, 8, 7);
+    
+    // Peões brancos nas laterais (exemplo)
+    // Coluna 0, linhas 1, 4, 7
+    placePieceOnBoard({ type: 'pawn', color: 'white' }, 1, 0);
+    placePieceOnBoard({ type: 'pawn', color: 'white' }, 4, 0);
+    placePieceOnBoard({ type: 'pawn', color: 'white' }, 7, 0);
+    // Coluna 8, linhas 1, 4, 7
+    placePieceOnBoard({ type: 'pawn', color: 'white' }, 1, 8);
+    placePieceOnBoard({ type: 'pawn', color: 'white' }, 4, 8);
+    placePieceOnBoard({ type: 'pawn', color: 'white' }, 7, 8);
+}
+
+
+// Manipula o início do arrasto de uma peça DO ESTOQUE
+function handleStockDragStart(e) {
+    if (e.target.classList.contains('piece')) {
+        draggedElement = e.target;
+        isDraggingFromStock = true;
+        isDraggingToBoard = false;
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('text/plain', null); // Necessário para Firefox
+        setTimeout(() => { draggedElement.style.opacity = '0.5'; }, 0);
+    } else if (e.target.classList.contains('piece-container')) {
+        const pieceInside = e.target.querySelector('.piece');
+        if (pieceInside) {
+            draggedElement = pieceInside;
+            isDraggingFromStock = true;
+            isDraggingToBoard = false;
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', null);
+            setTimeout(() => { draggedElement.style.opacity = '0.5'; }, 0);
+        }
+    }
+}
+
+// Manipula o início do arrasto de uma peça JÁ NO TABULEIRO
+function handleBoardPieceDragStart(e) {
+    if (e.target.classList.contains('piece')) {
+        draggedElement = e.target;
+        isDraggingFromStock = false; // Não é do estoque
+        isDraggingToBoard = true;    // Estamos indo para algum lugar no tabuleiro
+        
+        // Armazena a posição atual da peça arrastada
+        draggedElement.dataset.originalRow = draggedElement.dataset.row;
+        draggedElement.dataset.originalCol = draggedElement.dataset.col;
+
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', null);
+        setTimeout(() => { draggedElement.style.opacity = '0.5'; }, 0);
+    }
+}
+
+// Manipula o fim do arrasto (comum para todos os casos)
+function handleDragEnd() {
+    if (draggedElement) {
+        draggedElement.style.opacity = '1';
+    }
+    draggedElement = null;
+    isDraggingFromStock = false;
+    isDraggingToBoard = false;
+    
+    // Limpa indicações de drag-over em todas as áreas
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+
+// --- Manipuladores para o TABULEIRO (interseções) ---
+function handleDragEnter(e) {
+    e.preventDefault();
+    if (e.target.classList.contains('square')) { // Verifica se é uma interseção
+        e.target.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    if (e.target.classList.contains('square')) {
+        e.target.classList.remove('drag-over');
+    }
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    if (e.target.classList.contains('square')) {
+        e.target.classList.add('drag-over');
+    }
+}
+
+// --- Manipuladores para a ÁREA DE REMOÇÃO ---
+function handleRemoveDragEnter(e) {
+    e.preventDefault();
+    if (e.target.classList.contains('drop-target-area')) {
+        e.target.classList.add('drag-over');
+    }
+}
+
+function handleRemoveDragLeave(e) {
+    if (e.target.classList.contains('drop-target-area')) {
+        e.target.classList.remove('drag-over');
+    }
+}
+
+function handleRemoveDragOver(e) {
+    e.preventDefault();
+    if (e.target.classList.contains('drop-target-area')) {
+        e.target.classList.add('drag-over');
+    }
+}
+
+// --- Manipulador DE SOLTAR ---
+function handleDrop(e) {
+    e.preventDefault();
+    
+    if (!draggedElement) {
+        return; 
+    }
+
+    const pieceType = draggedElement.dataset.type;
+    const pieceColor = draggedElement.dataset.color;
+
+    // 1. Soltar em uma INTERSEÇÃO do TABULEIRO
+    if (e.target.classList.contains('square')) {
+        const targetSquare = e.target;
+        const targetRow = parseInt(targetSquare.dataset.row);
+        const targetCol = parseInt(targetSquare.dataset.col);
+
+        // Se veio do ESTOQUE (isDraggingFromStock é true)
+        if (isDraggingFromStock) {
+            // Verifica se a interseção de destino está vazia
+            if (!findPieceElement(targetRow, targetCol)) {
+                placePieceOnBoard({ type: pieceType, color: pieceColor }, targetRow, targetCol);
+            } else {
+                console.log("Interseção ocupada!");
+            }
+        } 
+        // Se veio do TABULEIRO (isDraggingToBoard é true)
+        else if (isDraggingToBoard) {
+            const originalRow = parseInt(draggedElement.dataset.originalRow);
+            const originalCol = parseInt(draggedElement.dataset.originalCol);
+
+            // Verifica se a interseção de destino está vazia E se não é a mesma posição
+            if (!findPieceElement(targetRow, targetCol) && !(originalRow === targetRow && originalCol === targetCol)) {
+                // Remove a peça da posição original
+                removePieceFromBoard(originalRow, originalCol);
+                // Coloca a peça na nova posição
+                placePieceOnBoard({ type: pieceType, color: pieceColor, row: targetRow, col: targetCol }, targetRow, targetCol);
+            } else if (originalRow === targetRow && originalCol === targetCol) {
+                console.log("Peça retornou à sua posição original.");
+                // Peça retorna à sua posição, não faz nada além de resetar flags.
+            } else {
+                console.log("Interseção de destino ocupada!");
+                // Peça retorna à sua posição original
+                draggedElement.dataset.row = originalRow;
+                draggedElement.dataset.col = originalCol;
+                // Não removemos a peça do tabuleiro lógico, apenas a visual.
+                // Poderíamos restaurar a peça no lugar original se ela foi removida visualmente.
+                const originalSquare = boardElement.querySelector(`.square[data-row="${originalRow}"][data-col="${originalCol}"]`);
+                if(originalSquare) {
+                    originalSquare.appendChild(draggedElement); // Reanexa no lugar original
+                }
+            }
+        }
+    } 
+    // 2. Soltar na ÁREA DE REMOÇÃO
+    else if (e.target.classList.contains('drop-target-area')) {
+        if (draggedElement && !isDraggingFromStock) { // Só remove peças que vieram do tabuleiro
+            const row = parseInt(draggedElement.dataset.row);
+            const col = parseInt(draggedElement.dataset.col);
+            removePieceFromBoard(row, col); // Remove visual e logicamente
+            console.log(`Peça removida da interseção (${row}, ${col}).`);
+        } else if (draggedElement && isDraggingFromStock) {
+            console.log("Não é possível remover peças do estoque diretamente.");
+        }
+    }
+
+    // Limpa o estado após a ação
+    draggedElement = null;
+    isDraggingFromStock = false;
+    isDraggingToBoard = false;
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+
+// Inicializa o jogo
+createBoard();
+addRemoveAreaListeners();
+initializeBoard(); // Coloca as peças iniciais
+
+
